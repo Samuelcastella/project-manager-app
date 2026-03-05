@@ -13,6 +13,7 @@ Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Es
 - [docs/security/SECURITY_BASELINE.md](/home/yoni/project-manager-app/docs/security/SECURITY_BASELINE.md)
 - [docs/runbooks/LOCAL_BOOTSTRAP.md](/home/yoni/project-manager-app/docs/runbooks/LOCAL_BOOTSTRAP.md)
 - [docs/runbooks/AGENTS_SMOKE_TEST.md](/home/yoni/project-manager-app/docs/runbooks/AGENTS_SMOKE_TEST.md)
+- [docs/runbooks/API_INTEGRATION_TEST.md](/home/yoni/project-manager-app/docs/runbooks/API_INTEGRATION_TEST.md)
 - [infra/docker/compose.semse-mvp.yml](/home/yoni/project-manager-app/infra/docker/compose.semse-mvp.yml)
 
 ### Avance técnico Fase 0 ya agregado
@@ -151,6 +152,8 @@ Se agregó pipeline en [`.github/workflows/ci.yml`](/home/yoni/project-manager-a
 - `e2e`: ejecuta Playwright (`chromium`) con `npm run test:e2e` y sube artefactos para debugging.
 - Smoke API de agentes en [`.github/workflows/api-smoke.yml`](/home/yoni/project-manager-app/.github/workflows/api-smoke.yml):
   levanta `apps/api` y ejecuta `scripts/agent-flow-smoke.sh` (manual y en cambios relevantes).
+- Integración API de dominio en [`.github/workflows/api-integration.yml`](/home/yoni/project-manager-app/.github/workflows/api-integration.yml):
+  levanta `apps/api` y ejecuta `node scripts/api-integration.mjs`.
 
 ### Reporte externo de cobertura (Codecov)
 
