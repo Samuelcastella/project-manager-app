@@ -10,6 +10,10 @@ import {
   filterAndSortProjects,
   normalizeProject,
   isOverdue,
+  getDefaultFilters,
+  normalizeViewFilters,
+  normalizeFilterPresets,
+  parseBackupPayload,
 } from "../../logic.mjs";
 
 test("todayISO, validateDueDate y normalizeBudget cubren ramas base", () => {
@@ -338,4 +342,45 @@ test("filterAndSortProjects cubre ramas de busqueda por owner/tag/description y 
     sortKey: "dueDate",
   });
   assert.deepEqual(byPriorityAndOwner.map((item) => item.id), ["a"]);
+});
+
+test("normalización de filtros por vista y presets", () => {
+  const defaults = getDefaultFilters();
+  assert.equal(defaults.status, "todos");
+
+  const normalizedViews = normalizeViewFilters({
+    list: { status: "pendiente", owner: "Ana" },
+    kanban: { priority: "alta" },
+  });
+  assert.equal(normalizedViews.list.status, "pendiente");
+  assert.equal(normalizedViews.list.owner, "Ana");
+  assert.equal(normalizedViews.kanban.priority, "alta");
+  assert.equal(normalizedViews.calendar.sortBy, "dueDate");
+
+  const presets = normalizeFilterPresets({
+    "Equipo Ana": { status: "pendiente", view: "list" },
+    "Urgentes K": { priority: "alta", view: "kanban" },
+  });
+  assert.equal(presets["Equipo Ana"].view, "list");
+  assert.equal(presets["Urgentes K"].priority, "alta");
+});
+
+test("parseBackupPayload acepta formato legado y formato completo", () => {
+  const legacy = parseBackupPayload([{ id: "1" }]);
+  assert.equal(legacy.isValid, true);
+  assert.equal(legacy.isLegacy, true);
+  assert.equal(Array.isArray(legacy.projects), true);
+
+  const full = parseBackupPayload({
+    projects: [{ id: "2" }],
+    filterPresets: { P1: { status: "pendiente", view: "list" } },
+    viewFilters: { list: { status: "pendiente" } },
+  });
+  assert.equal(full.isValid, true);
+  assert.equal(full.isLegacy, false);
+  assert.equal(full.filterPresets.P1.view, "list");
+  assert.equal(full.viewFilters.list.status, "pendiente");
+
+  const invalid = parseBackupPayload("bad");
+  assert.equal(invalid.isValid, false);
 });

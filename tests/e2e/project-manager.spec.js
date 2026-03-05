@@ -179,6 +179,7 @@ test("importar backup completo restaura proyectos y configuración", async ({ pa
     },
   };
 
+  page.once("dialog", (dialog) => dialog.accept());
   await page.locator("#import-file").setInputFiles({
     name: "backup.json",
     mimeType: "application/json",

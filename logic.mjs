@@ -119,3 +119,71 @@ export function filterAndSortProjects(items, filters) {
       return a.dueDate.localeCompare(b.dueDate);
     });
 }
+
+export function getDefaultFilters() {
+  return {
+    search: "",
+    status: "todos",
+    priority: "todas",
+    owner: "",
+    sortBy: "dueDate",
+  };
+}
+
+export function sanitizeFilters(input) {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    search: String(source.search || ""),
+    status: String(source.status || "todos"),
+    priority: String(source.priority || "todas"),
+    owner: String(source.owner || ""),
+    sortBy: String(source.sortBy || "dueDate"),
+  };
+}
+
+export function normalizeViewFilters(input) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  return {
+    list: sanitizeFilters(source.list),
+    kanban: sanitizeFilters(source.kanban),
+    calendar: sanitizeFilters(source.calendar),
+  };
+}
+
+export function normalizeFilterPresets(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const entries = Object.entries(input)
+    .filter(([name, value]) => name && value && typeof value === "object" && !Array.isArray(value))
+    .map(([name, value]) => [String(name), { ...sanitizeFilters(value), view: String(value.view || "list") }]);
+  return Object.fromEntries(entries);
+}
+
+export function parseBackupPayload(parsed) {
+  if (Array.isArray(parsed)) {
+    return {
+      projects: parsed,
+      filterPresets: null,
+      viewFilters: null,
+      isLegacy: true,
+      isValid: true,
+    };
+  }
+
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return {
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      filterPresets: normalizeFilterPresets(parsed.filterPresets),
+      viewFilters: normalizeViewFilters(parsed.viewFilters),
+      isLegacy: false,
+      isValid: true,
+    };
+  }
+
+  return {
+    projects: [],
+    filterPresets: null,
+    viewFilters: null,
+    isLegacy: false,
+    isValid: false,
+  };
+}

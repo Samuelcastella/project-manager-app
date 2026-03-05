@@ -10,6 +10,10 @@ import {
   parseTags,
   filterAndSortProjects,
   isOverdue,
+  getDefaultFilters,
+  normalizeViewFilters,
+  normalizeFilterPresets,
+  parseBackupPayload,
 } from "./logic.mjs";
 
 const STORAGE_KEY = "project_manager_projects_v2";
@@ -190,44 +194,6 @@ function loadFilterPresets() {
 
 function saveFilterPresets() {
   return writeStorage(FILTER_PRESETS_KEY, JSON.stringify(state.filterPresets));
-}
-
-function getDefaultFilters() {
-  return {
-    search: "",
-    status: "todos",
-    priority: "todas",
-    owner: "",
-    sortBy: "dueDate",
-  };
-}
-
-function sanitizeFilters(input) {
-  const source = input && typeof input === "object" ? input : {};
-  return {
-    search: String(source.search || ""),
-    status: String(source.status || "todos"),
-    priority: String(source.priority || "todas"),
-    owner: String(source.owner || ""),
-    sortBy: String(source.sortBy || "dueDate"),
-  };
-}
-
-function normalizeViewFilters(input) {
-  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
-  return {
-    list: sanitizeFilters(source.list),
-    kanban: sanitizeFilters(source.kanban),
-    calendar: sanitizeFilters(source.calendar),
-  };
-}
-
-function normalizeFilterPresets(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
-  const entries = Object.entries(input)
-    .filter(([name, value]) => name && value && typeof value === "object" && !Array.isArray(value))
-    .map(([name, value]) => [String(name), { ...sanitizeFilters(value), view: String(value.view || "list") }]);
-  return Object.fromEntries(entries);
 }
 
 function loadViewFilters() {
@@ -517,6 +483,7 @@ function renderCalendar(items) {
   weekdayLabels.forEach((label) => {
     const head = document.createElement("div");
     head.className = "calendar-weekday";
+    head.setAttribute("role", "columnheader");
     head.textContent = label;
     calendarGrid.appendChild(head);
   });
@@ -531,14 +498,17 @@ function renderCalendar(items) {
   cells.forEach((dateCell) => {
     const box = document.createElement("div");
     box.className = "calendar-cell";
+    box.setAttribute("role", "gridcell");
 
     if (!dateCell) {
       box.classList.add("muted");
+      box.setAttribute("aria-hidden", "true");
       calendarGrid.appendChild(box);
       return;
     }
 
     const iso = dateCell.toISOString().slice(0, 10);
+    box.setAttribute("aria-label", `Día ${dateCell.getDate()} de ${getMonthLabel(state.calendarCursor)}`);
     const day = document.createElement("strong");
     day.textContent = String(dateCell.getDate());
     box.appendChild(day);
@@ -914,21 +884,21 @@ async function importProjectsFromFile(file) {
   try {
     const text = await file.text();
     const parsed = safeJSONParse(text, null);
-    let importedProjects = [];
-    let importedPresets = null;
-    let importedViewFilters = null;
-
-    if (Array.isArray(parsed)) {
-      // Backward compatibility: old format with only project array.
-      importedProjects = parsed.map((item) => normalizeProject(item)).filter(Boolean);
-    } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const rawProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
-      importedProjects = rawProjects.map((item) => normalizeProject(item)).filter(Boolean);
-      importedPresets = normalizeFilterPresets(parsed.filterPresets);
-      importedViewFilters = normalizeViewFilters(parsed.viewFilters);
-    } else {
+    const payload = parseBackupPayload(parsed);
+    if (!payload.isValid) {
       setStatusMessage("Formato JSON no compatible.", "error");
       return;
+    }
+
+    const importedProjects = payload.projects.map((item) => normalizeProject(item)).filter(Boolean);
+    const importedPresets = payload.filterPresets;
+    const importedViewFilters = payload.viewFilters;
+
+    if (!payload.isLegacy && (importedPresets || importedViewFilters)) {
+      const confirmed = window.confirm(
+        "Este backup incluye presets y filtros por vista. ¿Quieres sobrescribir tu configuración actual?"
+      );
+      if (!confirmed) return;
     }
 
     setUndoSnapshot("importar backup");

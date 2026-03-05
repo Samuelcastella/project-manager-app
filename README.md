@@ -23,6 +23,7 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Presets de filtros guardados en `localStorage` (asociados por vista).
 - Export/import de backup completo (`proyectos + presets + filtros por vista`).
 - Deshacer última acción (botón + Ctrl/Cmd+Z).
+- Confirmación antes de sobrescribir configuración al importar backup completo.
 - Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
@@ -88,6 +89,7 @@ Escenarios actuales:
 - Recordar filtros distintos entre lista y kanban.
 - Importar backup completo con configuración de usuario.
 - Deshacer eliminación de proyecto.
+- Cobertura unitaria de normalización de backup/presets/filtros.
 
 Si es la primera vez:
 

@@ -21,6 +21,9 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Presets asociados a la vista activa.
 - Backup JSON completo (proyectos + presets + filtros por vista) en export/import.
 - Deshacer última acción (botón y atajo Ctrl/Cmd+Z) para cambios de datos.
+- Confirmación previa al sobrescribir configuración durante importación completa.
+- Mejoras de accesibilidad en calendario (`role=grid`, `gridcell`, `aria-label`).
+- Cobertura unitaria de normalización de backup/presets/filtros por vista.
 
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.
