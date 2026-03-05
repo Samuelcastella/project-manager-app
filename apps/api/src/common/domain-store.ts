@@ -28,6 +28,35 @@ export type DisputeRecord = {
   resolution?: string;
 };
 
+export type ProjectRecord = {
+  id: string;
+  tenantId: string;
+  jobId: string;
+  assignedProOrgId: string;
+  status: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
+};
+
+export type EscrowRecord = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  status: "active" | "closed";
+  totalAmount: number;
+  currency: string;
+};
+
+export type PaymentTxnRecord = {
+  id: string;
+  tenantId: string;
+  escrowId: string;
+  projectId: string;
+  milestoneId?: string;
+  type: "deposit" | "release" | "holdback" | "fee" | "refund";
+  amount: number;
+  status: "pending" | "succeeded" | "failed";
+  createdAt: string;
+};
+
 export type AgentRunRecord = {
   id: string;
   tenantId: string;
@@ -41,6 +70,9 @@ export type AgentRunRecord = {
 export const domainStore = {
   jobs: [] as JobRecord[],
   bids: [] as BidRecord[],
+  projects: [] as ProjectRecord[],
+  escrows: [] as EscrowRecord[],
+  paymentTxns: [] as PaymentTxnRecord[],
   disputes: [] as DisputeRecord[],
   agentRuns: [] as AgentRunRecord[]
 };

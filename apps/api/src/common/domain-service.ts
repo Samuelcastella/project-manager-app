@@ -1,5 +1,13 @@
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
-import { domainStore, type AgentRunRecord, type BidRecord, type JobRecord } from "./domain-store.js";
+import {
+  domainStore,
+  type AgentRunRecord,
+  type BidRecord,
+  type EscrowRecord,
+  type JobRecord,
+  type PaymentTxnRecord,
+  type ProjectRecord
+} from "./domain-store.js";
 import { buildIdempotencyKey, getIdempotentResult, setIdempotentResult } from "./idempotency.store.js";
 
 export function createJob(input: {
@@ -97,6 +105,11 @@ export function acceptBid(input: { tenantId: string; bidId: string }): BidRecord
 
   bid.status = "accepted";
   job.status = "awarded";
+  ensureProjectForAcceptedBid({
+    tenantId: input.tenantId,
+    jobId: bid.jobId,
+    assignedProOrgId: bid.proOrgId
+  });
   return bid;
 }
 
@@ -163,4 +176,120 @@ export function retryAgentRun(input: { tenantId: string; runId: string }): Agent
 
   run.status = "queued";
   return run;
+}
+
+export function findProjectOrThrow(input: { tenantId: string; projectId: string }): ProjectRecord {
+  const project = domainStore.projects.find(
+    (entry) => entry.id === input.projectId && entry.tenantId === input.tenantId
+  );
+  if (!project) {
+    throw new NotFoundException(`Project '${input.projectId}' not found`);
+  }
+  return project;
+}
+
+export function createEscrowDeposit(input: {
+  tenantId: string;
+  projectId: string;
+  amount: number;
+  currency?: string;
+}): { escrow: EscrowRecord; transaction: PaymentTxnRecord } {
+  if (input.amount <= 0) {
+    throw new BadRequestException("deposit amount must be greater than zero");
+  }
+
+  const project = findProjectOrThrow({ tenantId: input.tenantId, projectId: input.projectId });
+  let escrow = domainStore.escrows.find(
+    (entry) => entry.projectId === project.id && entry.tenantId === input.tenantId
+  );
+
+  if (!escrow) {
+    escrow = {
+      id: `esc_${Date.now()}`,
+      tenantId: input.tenantId,
+      projectId: project.id,
+      status: "active",
+      totalAmount: 0,
+      currency: input.currency ?? "USD"
+    };
+    domainStore.escrows.push(escrow);
+  }
+
+  escrow.totalAmount += input.amount;
+  const transaction: PaymentTxnRecord = {
+    id: `ptx_${Date.now()}`,
+    tenantId: input.tenantId,
+    escrowId: escrow.id,
+    projectId: project.id,
+    type: "deposit",
+    amount: input.amount,
+    status: "succeeded",
+    createdAt: new Date().toISOString()
+  };
+  domainStore.paymentTxns.unshift(transaction);
+  return { escrow, transaction };
+}
+
+export function releaseMilestonePayment(input: {
+  tenantId: string;
+  milestoneId: string;
+  projectId: string;
+  amount: number;
+}): PaymentTxnRecord {
+  if (input.amount <= 0) {
+    throw new BadRequestException("release amount must be greater than zero");
+  }
+
+  const escrow = domainStore.escrows.find(
+    (entry) => entry.projectId === input.projectId && entry.tenantId === input.tenantId
+  );
+  if (!escrow) {
+    throw new NotFoundException(`Escrow for project '${input.projectId}' not found`);
+  }
+
+  const releasedSoFar = domainStore.paymentTxns
+    .filter((entry) => entry.escrowId === escrow.id && entry.type === "release" && entry.status === "succeeded")
+    .reduce((acc, entry) => acc + entry.amount, 0);
+  const available = escrow.totalAmount - releasedSoFar;
+
+  if (input.amount > available) {
+    throw new ConflictException("insufficient escrow funds for release");
+  }
+
+  const transaction: PaymentTxnRecord = {
+    id: `ptx_${Date.now()}`,
+    tenantId: input.tenantId,
+    escrowId: escrow.id,
+    projectId: input.projectId,
+    milestoneId: input.milestoneId,
+    type: "release",
+    amount: input.amount,
+    status: "succeeded",
+    createdAt: new Date().toISOString()
+  };
+  domainStore.paymentTxns.unshift(transaction);
+  return transaction;
+}
+
+function ensureProjectForAcceptedBid(input: {
+  tenantId: string;
+  jobId: string;
+  assignedProOrgId: string;
+}): ProjectRecord {
+  const existing = domainStore.projects.find(
+    (entry) => entry.tenantId === input.tenantId && entry.jobId === input.jobId
+  );
+  if (existing) {
+    return existing;
+  }
+
+  const created: ProjectRecord = {
+    id: `prj_${Date.now()}`,
+    tenantId: input.tenantId,
+    jobId: input.jobId,
+    assignedProOrgId: input.assignedProOrgId,
+    status: "open"
+  };
+  domainStore.projects.unshift(created);
+  return created;
 }

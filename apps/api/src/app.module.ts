@@ -9,6 +9,8 @@ import { EvidenceController } from "./modules/evidence/evidence.controller.js";
 import { DisputesController } from "./modules/disputes/disputes.controller.js";
 import { OpsController } from "./modules/ops/ops.controller.js";
 import { AgentsController } from "./modules/agents/agents.controller.js";
+import { ProjectsController } from "./modules/projects/projects.controller.js";
+import { PaymentsController } from "./modules/payments/payments.controller.js";
 import { RbacGuard } from "./common/rbac.guard.js";
 
 @Module({
@@ -21,7 +23,9 @@ import { RbacGuard } from "./common/rbac.guard.js";
     EvidenceController,
     DisputesController,
     OpsController,
-    AgentsController
+    AgentsController,
+    ProjectsController,
+    PaymentsController
   ],
   providers: [{ provide: APP_GUARD, useClass: RbacGuard }]
 })

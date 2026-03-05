@@ -22,7 +22,7 @@ Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Es
 - API base en NestJS (scaffold):
   - [`apps/api/src/main.ts`](/home/yoni/project-manager-app/apps/api/src/main.ts)
   - [`apps/api/src/app.module.ts`](/home/yoni/project-manager-app/apps/api/src/app.module.ts)
-  - Controladores `v1`: health, auth, jobs, bids, milestones, evidence, disputes, ops, agents.
+  - Controladores `v1`: health, auth, jobs, bids, projects, milestones, evidence, payments/escrow, disputes, ops, agents.
 - Modelo de datos base Prisma:
   - [`packages/db/prisma/schema.prisma`](/home/yoni/project-manager-app/packages/db/prisma/schema.prisma)
 - Contratos Zod iniciales:
