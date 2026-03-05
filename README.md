@@ -16,6 +16,8 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Vista lista y vista kanban.
 - Métricas en tiempo real: total, en progreso, vencidos y % completado.
 - Filtros avanzados (texto, estado, prioridad, responsable) y ordenamiento.
+- Presets de filtros guardados en `localStorage`.
+- Atajos de teclado (`/`, `n`, `Esc`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
 - Exportar e importar proyectos en JSON.
@@ -72,6 +74,8 @@ npm run test:e2e
 Escenarios actuales:
 - Crear proyecto y verificar render en lista.
 - Cambiar a vista kanban y mover estado con acción rápida.
+- Validar atajos de teclado (`/` y `n`).
+- Guardar y aplicar preset de filtros.
 
 Si es la primera vez:
 

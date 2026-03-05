@@ -237,6 +237,34 @@ select:focus {
   font-size: 0.9rem;
 }
 
+.preset-row {
+  margin-top: 0.78rem;
+  display: flex;
+  align-items: end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.preset-row label {
+  min-width: 220px;
+}
+
+.shortcut-hint {
+  margin: 0 0 0 auto;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+kbd {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  border: 1px solid #bccab6;
+  border-bottom-width: 2px;
+  background: #f7faf5;
+  border-radius: 6px;
+  padding: 0.08rem 0.32rem;
+}
+
 .project-grid {
   display: grid;
   gap: 0.65rem;
@@ -415,6 +443,11 @@ select:focus {
   }
 
   .actions-row p {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .shortcut-hint {
     margin-left: 0;
     width: 100%;
   }

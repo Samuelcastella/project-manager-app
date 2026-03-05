@@ -13,6 +13,7 @@ import {
 } from "./logic.mjs";
 
 const STORAGE_KEY = "project_manager_projects_v2";
+const FILTER_PRESETS_KEY = "project_manager_filter_presets_v1";
 const LEGACY_STORAGE_KEYS = ["project_manager_projects", "project_manager_projects_v1"];
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -49,6 +50,9 @@ const filterPriority = document.getElementById("filter-priority");
 const filterOwner = document.getElementById("filter-owner");
 const sortBy = document.getElementById("sort-by");
 const projectCount = document.getElementById("project-count");
+const filterPreset = document.getElementById("filter-preset");
+const savePresetBtn = document.getElementById("save-preset");
+const deletePresetBtn = document.getElementById("delete-preset");
 
 const resetFiltersBtn = document.getElementById("reset-filters");
 const clearCompletedBtn = document.getElementById("clear-completed");
@@ -68,6 +72,7 @@ const metrics = {
 const state = {
   projects: loadProjects(),
   currentView: "list",
+  filterPresets: loadFilterPresets(),
 };
 
 function setStatusMessage(message, type = "info") {
@@ -104,6 +109,19 @@ function writeStorage(key, value) {
 
 function saveProjects() {
   return writeStorage(STORAGE_KEY, JSON.stringify(state.projects));
+}
+
+function loadFilterPresets() {
+  const raw = readStorage(FILTER_PRESETS_KEY);
+  if (!raw) return {};
+
+  const parsed = safeJSONParse(raw, {});
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  return parsed;
+}
+
+function saveFilterPresets() {
+  return writeStorage(FILTER_PRESETS_KEY, JSON.stringify(state.filterPresets));
 }
 
 function loadProjects() {
@@ -162,6 +180,49 @@ function getFilteredProjects() {
     owner: filterOwner.value,
     sortKey: sortBy.value,
   });
+}
+
+function getCurrentFilters() {
+  return {
+    search: searchInput.value,
+    status: filterStatus.value,
+    priority: filterPriority.value,
+    owner: filterOwner.value,
+    sortBy: sortBy.value,
+  };
+}
+
+function clearPresetSelection() {
+  if (filterPreset.value) {
+    filterPreset.value = "";
+  }
+}
+
+function applyFiltersFromPreset(preset) {
+  searchInput.value = String(preset.search || "");
+  filterStatus.value = String(preset.status || "todos");
+  filterPriority.value = String(preset.priority || "todas");
+  filterOwner.value = String(preset.owner || "");
+  sortBy.value = String(preset.sortBy || "dueDate");
+  render();
+}
+
+function renderPresetOptions() {
+  const previousValue = filterPreset.value;
+  filterPreset.innerHTML = '<option value="">Sin preset</option>';
+
+  Object.keys(state.filterPresets)
+    .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }))
+    .forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      filterPreset.appendChild(option);
+    });
+
+  if (previousValue && state.filterPresets[previousValue]) {
+    filterPreset.value = previousValue;
+  }
 }
 
 function buildTagList(tags) {
@@ -408,7 +469,80 @@ function resetFilters() {
   filterPriority.value = "todas";
   filterOwner.value = "";
   sortBy.value = "dueDate";
+  filterPreset.value = "";
   render();
+}
+
+function saveCurrentPreset() {
+  const name = window.prompt("Nombre del preset de filtros:");
+  if (!name) return;
+
+  const cleanName = name.trim();
+  if (!cleanName) return;
+
+  state.filterPresets[cleanName] = getCurrentFilters();
+  if (saveFilterPresets()) {
+    renderPresetOptions();
+    filterPreset.value = cleanName;
+    setStatusMessage(`Preset "${cleanName}" guardado.`, "success");
+  }
+}
+
+function deleteCurrentPreset() {
+  const name = filterPreset.value;
+  if (!name) {
+    setStatusMessage("Selecciona un preset para borrar.", "info");
+    return;
+  }
+
+  const confirmed = window.confirm(`¿Borrar preset "${name}"?`);
+  if (!confirmed) return;
+
+  delete state.filterPresets[name];
+  if (saveFilterPresets()) {
+    renderPresetOptions();
+    filterPreset.value = "";
+    setStatusMessage(`Preset "${name}" eliminado.`, "success");
+  }
+}
+
+function isTypingTarget(element) {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+function bindKeyboardShortcuts() {
+  window.addEventListener("keydown", (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    if (event.key === "/" && !isTypingTarget(document.activeElement)) {
+      event.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
+    if (event.key.toLowerCase() === "n" && !isTypingTarget(document.activeElement)) {
+      event.preventDefault();
+      resetFormState();
+      inputs.name.focus();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      setStatusMessage("Formulario listo para nuevo proyecto.", "info");
+      return;
+    }
+
+    if (event.key === "Escape") {
+      if (inputs.id.value) {
+        resetFormState();
+        setStatusMessage("Edición cancelada.", "info");
+      }
+      if (document.activeElement && isTypingTarget(document.activeElement)) {
+        document.activeElement.blur();
+      }
+    }
+  });
 }
 
 function exportProjects() {
@@ -527,12 +661,39 @@ function bindEvents() {
 
   const debouncedRender = debounce(render, 180);
   [searchInput, filterOwner].forEach((control) => {
-    control.addEventListener("input", debouncedRender);
+    control.addEventListener("input", () => {
+      clearPresetSelection();
+      debouncedRender();
+    });
   });
 
   [filterStatus, filterPriority, sortBy].forEach((control) => {
-    control.addEventListener("change", render);
+    control.addEventListener("change", () => {
+      clearPresetSelection();
+      render();
+    });
   });
+
+  filterPreset.addEventListener("change", () => {
+    const name = filterPreset.value;
+    if (!name) {
+      setStatusMessage("Preset desactivado.", "info");
+      return;
+    }
+
+    const preset = state.filterPresets[name];
+    if (!preset) {
+      setStatusMessage("Preset no encontrado.", "error");
+      filterPreset.value = "";
+      return;
+    }
+
+    applyFiltersFromPreset(preset);
+    setStatusMessage(`Preset "${name}" aplicado.`, "success");
+  });
+
+  savePresetBtn.addEventListener("click", saveCurrentPreset);
+  deletePresetBtn.addEventListener("click", deleteCurrentPreset);
 
   resetFiltersBtn.addEventListener("click", () => {
     resetFilters();
@@ -571,8 +732,10 @@ function bindEvents() {
 function init() {
   inputs.dueDate.value = todayISO();
   inputs.budget.value = "0";
+  renderPresetOptions();
   setView("list");
   bindEvents();
+  bindKeyboardShortcuts();
   render();
   setStatusMessage("Aplicación lista.", "info");
 }

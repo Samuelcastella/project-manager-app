@@ -6,10 +6,16 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+### Added
+- Presets de filtros guardados en `localStorage`.
+- Atajos de teclado:
+  - `/` foco en búsqueda.
+  - `n` nuevo proyecto.
+  - `Esc` cancela edición/desenfoca.
+
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.
 - Vista de calendario mensual para fechas límite.
-- Filtros guardados (presets) y atajos de teclado.
 - Mejoras de accesibilidad (navegación completa por teclado y focus management).
 
 ## [1.0.2] - 2026-03-05

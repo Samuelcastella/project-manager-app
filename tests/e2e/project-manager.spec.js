@@ -31,3 +31,31 @@ test("cambiar a kanban y cambiar estado", async ({ page }) => {
   await page.locator("#kanban-pendiente .project-card button[data-action='toggle-status']").first().click();
   await expect(page.locator("#kanban-en-progreso .project-card")).toHaveCount(1);
 });
+
+test("atajos de teclado: '/' enfoca búsqueda y 'n' enfoca nuevo proyecto", async ({ page }) => {
+  await page.keyboard.press("/");
+  await expect(page.locator("#search")).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("n");
+  await expect(page.locator("#name")).toBeFocused();
+});
+
+test("guardar y aplicar preset de filtros", async ({ page }) => {
+  await page.locator("#filter-status").selectOption("pendiente");
+  await page.locator("#filter-priority").selectOption("alta");
+  await page.locator("#filter-owner").fill("Ana");
+
+  page.once("dialog", (dialog) => dialog.accept("Urgentes Ana"));
+  await page.locator("#save-preset").click();
+
+  await expect(page.locator("#filter-preset")).toHaveValue("Urgentes Ana");
+
+  await page.locator("#reset-filters").click();
+  await expect(page.locator("#filter-status")).toHaveValue("todos");
+
+  await page.locator("#filter-preset").selectOption("Urgentes Ana");
+  await expect(page.locator("#filter-status")).toHaveValue("pendiente");
+  await expect(page.locator("#filter-priority")).toHaveValue("alta");
+  await expect(page.locator("#filter-owner")).toHaveValue("Ana");
+});

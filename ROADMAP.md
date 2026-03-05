@@ -9,8 +9,8 @@
   - Proyectos agrupados por día/semana.
   - Indicadores de vencimiento.
 - Productividad:
-  - Presets de filtros.
-  - Atajos de teclado (`n` nuevo proyecto, `/` buscar).
+  - Presets de filtros. ✅
+  - Atajos de teclado (`n` nuevo proyecto, `/` buscar). ✅
 
 ## v1.2.0 (mediano plazo)
 
