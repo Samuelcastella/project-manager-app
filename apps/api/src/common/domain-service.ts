@@ -159,7 +159,8 @@ function createAgentRunRecord(input: {
     triggerType: input.triggerType,
     correlationId: input.correlationId,
     status: "queued",
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   domainStore.agentRuns.unshift(run);
@@ -177,6 +178,58 @@ export function retryAgentRun(input: { tenantId: string; runId: string }): Agent
   }
 
   run.status = "queued";
+  run.error = undefined;
+  run.updatedAt = new Date().toISOString();
+  return run;
+}
+
+export function startAgentRun(input: { tenantId: string; runId: string }): AgentRunRecord {
+  const run = findAgentRunOrThrow(input);
+  if (run.status === "running") {
+    return run;
+  }
+  if (run.status !== "queued") {
+    throw new ConflictException(`cannot start run in status '${run.status}'`);
+  }
+  run.status = "running";
+  run.updatedAt = new Date().toISOString();
+  return run;
+}
+
+export function completeAgentRun(input: {
+  tenantId: string;
+  runId: string;
+  output?: Record<string, unknown>;
+}): AgentRunRecord {
+  const run = findAgentRunOrThrow(input);
+  if (run.status === "completed") {
+    return run;
+  }
+  if (run.status !== "running") {
+    throw new ConflictException(`cannot complete run in status '${run.status}'`);
+  }
+  run.status = "completed";
+  run.output = input.output;
+  run.error = undefined;
+  run.updatedAt = new Date().toISOString();
+  return run;
+}
+
+export function failAgentRun(input: {
+  tenantId: string;
+  runId: string;
+  error: string;
+}): AgentRunRecord {
+  const run = findAgentRunOrThrow(input);
+  if (run.status === "failed") {
+    return run;
+  }
+  if (run.status !== "running") {
+    throw new ConflictException(`cannot fail run in status '${run.status}'`);
+  }
+  run.status = "failed";
+  run.error = input.error;
+  run.updatedAt = new Date().toISOString();
   return run;
 }
 
@@ -602,4 +655,14 @@ function findDisputeOrThrow(input: { tenantId: string; disputeId: string }): Dis
     throw new NotFoundException(`Dispute '${input.disputeId}' not found`);
   }
   return dispute;
+}
+
+function findAgentRunOrThrow(input: { tenantId: string; runId: string }): AgentRunRecord {
+  const run = domainStore.agentRuns.find(
+    (entry) => entry.tenantId === input.tenantId && entry.id === input.runId
+  );
+  if (!run) {
+    throw new NotFoundException(`Agent run '${input.runId}' not found`);
+  }
+  return run;
 }

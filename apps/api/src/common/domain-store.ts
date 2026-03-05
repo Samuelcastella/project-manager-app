@@ -75,7 +75,10 @@ export type AgentRunRecord = {
   status: "queued" | "running" | "completed" | "failed";
   triggerType: "manual" | "event" | "schedule";
   correlationId: string;
+  output?: Record<string, unknown>;
+  error?: string;
   createdAt: string;
+  updatedAt: string;
 };
 
 export const domainStore = {

@@ -2,7 +2,13 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
-import { createAgentRun, retryAgentRun } from "../../common/domain-service.js";
+import {
+  completeAgentRun,
+  createAgentRun,
+  failAgentRun,
+  retryAgentRun,
+  startAgentRun
+} from "../../common/domain-service.js";
 import { domainStore } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
@@ -102,6 +108,79 @@ export class AgentsController {
       timestamp: new Date().toISOString()
     });
 
+    return ok(requestId, run);
+  }
+
+  @Post("runs/:runId/start")
+  @RequirePermissions("agents:run:manage")
+  start(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
+    const actor = resolveRequestContext(req);
+    const run = startAgentRun({ tenantId: actor.tenantId, runId });
+    const requestId = resolveRequestId(req.headers ?? {});
+    appendAudit({
+      id: `aud_${Date.now()}`,
+      actorUserId: actor.userId,
+      action: "agent.run.start",
+      entityType: "AgentRun",
+      entityId: run.id,
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+    return ok(requestId, run);
+  }
+
+  @Post("runs/:runId/complete")
+  @RequirePermissions("agents:run:manage")
+  complete(
+    @Req() req: { headers?: Record<string, unknown> },
+    @Param("runId") runId: string,
+    @Body() body: { output?: Record<string, unknown> }
+  ) {
+    const actor = resolveRequestContext(req);
+    const run = completeAgentRun({
+      tenantId: actor.tenantId,
+      runId,
+      output: body.output
+    });
+    const requestId = resolveRequestId(req.headers ?? {});
+    appendAudit({
+      id: `aud_${Date.now()}`,
+      actorUserId: actor.userId,
+      action: "agent.run.complete",
+      entityType: "AgentRun",
+      entityId: run.id,
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+    return ok(requestId, run);
+  }
+
+  @Post("runs/:runId/fail")
+  @RequirePermissions("agents:run:manage")
+  fail(
+    @Req() req: { headers?: Record<string, unknown> },
+    @Param("runId") runId: string,
+    @Body() body: { error: string }
+  ) {
+    if (!body.error) {
+      throw new BadRequestException("error is required");
+    }
+    const actor = resolveRequestContext(req);
+    const run = failAgentRun({
+      tenantId: actor.tenantId,
+      runId,
+      error: body.error
+    });
+    const requestId = resolveRequestId(req.headers ?? {});
+    appendAudit({
+      id: `aud_${Date.now()}`,
+      actorUserId: actor.userId,
+      action: "agent.run.fail",
+      entityType: "AgentRun",
+      entityId: run.id,
+      requestId,
+      timestamp: new Date().toISOString()
+    });
     return ok(requestId, run);
   }
 }

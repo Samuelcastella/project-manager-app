@@ -56,3 +56,6 @@
 - `GET /v1/agents/runs`
 - `GET /v1/agents/runs/:runId`
 - `POST /v1/agents/runs/:runId/retry`
+- `POST /v1/agents/runs/:runId/start`
+- `POST /v1/agents/runs/:runId/complete`
+- `POST /v1/agents/runs/:runId/fail`

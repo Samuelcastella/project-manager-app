@@ -17,7 +17,8 @@ export const rolePermissions: Record<string, string[]> = {
     "ops:dashboard:read",
     "ops:risk:read",
     "agents:run:create",
-    "agents:run:retry"
+    "agents:run:retry",
+    "agents:run:manage"
   ]
 };
 
