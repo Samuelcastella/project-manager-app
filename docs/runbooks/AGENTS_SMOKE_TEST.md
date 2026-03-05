@@ -9,6 +9,10 @@ Valida rápidamente el flujo base de ejecución de agentes contra `apps/api`:
 5. Verificar detalle
 6. Reclaim stale
 
+Notas:
+- Los runs soportan `maxAttempts` al crearse (`POST /v1/agents/runs`).
+- Al superar el máximo de intentos, reclaim puede marcar el run como `dead-letter` lógico.
+
 ## Prerrequisitos
 
 - API corriendo en `http://localhost:4000` (o `SEMSE_API_URL`).

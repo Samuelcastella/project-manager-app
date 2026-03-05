@@ -77,6 +77,8 @@ export type AgentRunRecord = {
   correlationId: string;
   workerId?: string;
   attempts: number;
+  maxAttempts: number;
+  deadLettered: boolean;
   output?: Record<string, unknown>;
   error?: string;
   startedAt?: string;

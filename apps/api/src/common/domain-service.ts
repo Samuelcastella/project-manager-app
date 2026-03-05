@@ -121,6 +121,7 @@ export function createAgentRun(input: {
   agentType: AgentRunRecord["agentType"];
   triggerType: AgentRunRecord["triggerType"];
   correlationId: string;
+  maxAttempts?: number;
   idempotencyKey?: string;
 }): AgentRunRecord {
   if (input.idempotencyKey) {
@@ -130,6 +131,7 @@ export function createAgentRun(input: {
       input.userId,
       input.agentType,
       input.correlationId,
+      String(input.maxAttempts ?? 3),
       input.idempotencyKey
     ]);
 
@@ -151,7 +153,13 @@ function createAgentRunRecord(input: {
   agentType: AgentRunRecord["agentType"];
   triggerType: AgentRunRecord["triggerType"];
   correlationId: string;
+  maxAttempts?: number;
 }): AgentRunRecord {
+  const maxAttempts = input.maxAttempts ?? 3;
+  if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) {
+    throw new BadRequestException("maxAttempts must be a positive integer");
+  }
+
   const run: AgentRunRecord = {
     id: `run_${Date.now()}`,
     tenantId: input.tenantId,
@@ -160,6 +168,8 @@ function createAgentRunRecord(input: {
     correlationId: input.correlationId,
     status: "queued",
     attempts: 0,
+    maxAttempts,
+    deadLettered: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -177,6 +187,9 @@ export function retryAgentRun(input: { tenantId: string; runId: string }): Agent
   if (run.status === "running") {
     throw new BadRequestException("running run cannot be retried");
   }
+  if (run.deadLettered || run.attempts >= run.maxAttempts) {
+    throw new ConflictException("run reached max attempts and is dead-lettered");
+  }
 
   run.status = "queued";
   run.workerId = undefined;
@@ -192,6 +205,9 @@ export function startAgentRun(input: { tenantId: string; runId: string }): Agent
   const run = findAgentRunOrThrow(input);
   if (run.status === "running") {
     return run;
+  }
+  if (run.deadLettered || run.attempts >= run.maxAttempts) {
+    throw new ConflictException("run reached max attempts and cannot be started");
   }
   if (run.status !== "queued") {
     throw new ConflictException(`cannot start run in status '${run.status}'`);
@@ -253,6 +269,8 @@ export function claimNextAgentRun(input: {
       (entry) =>
         entry.tenantId === input.tenantId &&
         entry.status === "queued" &&
+        !entry.deadLettered &&
+        entry.attempts < entry.maxAttempts &&
         (!input.agentType || entry.agentType === input.agentType)
     )
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -312,13 +330,23 @@ export function reclaimStaleAgentRuns(input: {
       continue;
     }
 
-    run.status = "queued";
-    run.workerId = undefined;
-    run.error = "reclaimed due to stale heartbeat";
-    run.startedAt = undefined;
-    run.heartbeatAt = undefined;
-    run.endedAt = undefined;
-    run.updatedAt = new Date().toISOString();
+    if (run.attempts >= run.maxAttempts) {
+      run.status = "failed";
+      run.deadLettered = true;
+      run.error = "max attempts reached during stale reclaim";
+      run.workerId = undefined;
+      run.heartbeatAt = undefined;
+      run.endedAt = new Date().toISOString();
+      run.updatedAt = run.endedAt;
+    } else {
+      run.status = "queued";
+      run.workerId = undefined;
+      run.error = "reclaimed due to stale heartbeat";
+      run.startedAt = undefined;
+      run.heartbeatAt = undefined;
+      run.endedAt = undefined;
+      run.updatedAt = new Date().toISOString();
+    }
     reclaimed.push(run);
   }
 
@@ -389,7 +417,14 @@ export function getOpsDashboard(input: { tenantId: string }): {
   jobs: { total: number; published: number; awarded: number };
   projects: { total: number; open: number; inProgress: number; blocked: number; completed: number };
   disputes: { total: number; open: number; assigned: number; resolved: number };
-  agents: { totalRuns: number; queued: number; running: number; failed: number };
+  agents: {
+    totalRuns: number;
+    queued: number;
+    running: number;
+    failed: number;
+    deadLettered: number;
+    maxAttemptsReached: number;
+  };
 } {
   const jobs = domainStore.jobs.filter((entry) => entry.tenantId === input.tenantId);
   const projects = domainStore.projects.filter((entry) => entry.tenantId === input.tenantId);
@@ -419,7 +454,9 @@ export function getOpsDashboard(input: { tenantId: string }): {
       totalRuns: runs.length,
       queued: runs.filter((entry) => entry.status === "queued").length,
       running: runs.filter((entry) => entry.status === "running").length,
-      failed: runs.filter((entry) => entry.status === "failed").length
+      failed: runs.filter((entry) => entry.status === "failed").length,
+      deadLettered: runs.filter((entry) => entry.deadLettered).length,
+      maxAttemptsReached: runs.filter((entry) => entry.attempts >= entry.maxAttempts).length
     }
   };
 }

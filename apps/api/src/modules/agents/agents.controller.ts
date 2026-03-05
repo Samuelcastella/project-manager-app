@@ -20,7 +20,8 @@ import { resolveRequestId } from "../../common/request-id.js";
 const createAgentRunSchema = z.object({
   agentType: z.enum(["pricing", "job-planner", "evidence-coach", "risk", "dispute"]),
   triggerType: z.enum(["manual", "event", "schedule"]).default("manual"),
-  correlationId: z.string().min(1)
+  correlationId: z.string().min(1),
+  maxAttempts: z.number().int().positive().max(10).optional()
 });
 
 const claimAgentRunSchema = z.object({
@@ -92,6 +93,7 @@ export class AgentsController {
       agentType: parsed.data.agentType,
       triggerType: parsed.data.triggerType,
       correlationId: parsed.data.correlationId,
+      maxAttempts: parsed.data.maxAttempts,
       idempotencyKey
     });
 
@@ -169,6 +171,7 @@ export class AgentsController {
 
     return ok(requestId, {
       reclaimedCount: reclaimed.length,
+      deadLetteredCount: reclaimed.filter((entry) => entry.deadLettered).length,
       runs: reclaimed
     });
   }

@@ -52,9 +52,9 @@
 
 ## Agents
 - `GET /v1/agents/catalog`
-- `POST /v1/agents/runs`
+- `POST /v1/agents/runs` (acepta `maxAttempts` opcional)
 - `POST /v1/agents/runs/claim`
-- `POST /v1/agents/runs/reclaim-stale`
+- `POST /v1/agents/runs/reclaim-stale` (retorna `deadLetteredCount`)
 - `GET /v1/agents/runs`
 - `GET /v1/agents/runs/:runId`
 - `POST /v1/agents/runs/:runId/retry`
