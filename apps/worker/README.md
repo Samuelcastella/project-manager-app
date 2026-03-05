@@ -8,7 +8,28 @@ Responsabilidades:
 - Webhooks de pagos y reconciliación.
 - Notificaciones por email/eventos.
 
-Flujo API esperado para workers:
+Flujo API implementado:
 1. `POST /v1/agents/runs/claim`
 2. `POST /v1/agents/runs/:runId/heartbeat`
 3. `POST /v1/agents/runs/:runId/complete` o `.../fail`
+
+## Ejecutar local
+
+```bash
+cd /home/yoni/project-manager-app/apps/worker
+npm run start
+```
+
+## Variables de entorno
+
+- `SEMSE_API_URL` (default: `http://localhost:4000`)
+- `SEMSE_WORKER_ID` (default: `worker-local-<pid>`)
+- `SEMSE_TENANT_ID` (default: `tnt_demo`)
+- `SEMSE_USER_ID` (default: `usr_worker_001`)
+- `SEMSE_ORG_ID` (default: `org_worker`)
+- `SEMSE_ROLES` (default: `WORKER`)
+- `SEMSE_POLL_MS` (default: `3000`)
+- `SEMSE_HEARTBEAT_MS` (default: `2500`)
+- `SEMSE_RUN_SIM_MS` (default: `4000`)
+- `SEMSE_FAIL_RATE` (default: `0`, rango recomendado `0..1`)
+- `SEMSE_AGENT_TYPE` (opcional, filtra claims por tipo de agente)
