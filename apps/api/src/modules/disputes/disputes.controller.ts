@@ -2,10 +2,13 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { RequirePermissions } from "../../common/permissions.decorator.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 type Dispute = {
   id: string;
+  tenantId: string;
   projectId: string;
   reason: string;
   status: "open" | "assigned" | "resolved";
@@ -14,7 +17,6 @@ type Dispute = {
 };
 
 const createDisputeSchema = z.object({
-  actorUserId: z.string().min(1).default("usr_demo_001"),
   projectId: z.string().min(1),
   reason: z.string().min(5).max(1000)
 });
@@ -24,30 +26,37 @@ const disputes: Dispute[] = [];
 @Controller("v1/disputes")
 export class DisputesController {
   @Get()
-  list(@Req() req: any) {
-    return ok(resolveRequestId(req.headers ?? {}), disputes);
+  @RequirePermissions("disputes:create")
+  list(@Req() req: { headers?: Record<string, unknown> }) {
+    const actor = resolveRequestContext(req);
+    return ok(
+      resolveRequestId(req.headers ?? {}),
+      disputes.filter((entry) => entry.tenantId === actor.tenantId)
+    );
   }
 
   @Post()
-  create(@Req() req: any, @Body() body: Record<string, unknown>) {
+  @RequirePermissions("disputes:create")
+  create(@Req() req: { headers?: Record<string, unknown> }, @Body() body: Record<string, unknown>) {
     const parsed = createDisputeSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
 
-    const input = parsed.data;
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     const dispute: Dispute = {
       id: `dsp_${Date.now()}`,
-      projectId: input.projectId,
-      reason: input.reason,
+      tenantId: actor.tenantId,
+      projectId: parsed.data.projectId,
+      reason: parsed.data.reason,
       status: "open"
     };
 
     disputes.unshift(dispute);
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: input.actorUserId,
+      actorUserId: actor.userId,
       action: "dispute.create",
       entityType: "Dispute",
       entityId: dispute.id,
@@ -59,8 +68,10 @@ export class DisputesController {
   }
 
   @Post(":disputeId/assign")
-  assign(@Req() req: any, @Param("disputeId") disputeId: string, @Body() body: { assigneeUserId: string; actorUserId?: string }) {
-    const dispute = disputes.find((entry) => entry.id === disputeId);
+  @RequirePermissions("disputes:assign")
+  assign(@Req() req: { headers?: Record<string, unknown> }, @Param("disputeId") disputeId: string, @Body() body: { assigneeUserId: string }) {
+    const actor = resolveRequestContext(req);
+    const dispute = disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
     if (!dispute) {
       throw new NotFoundException(`Dispute '${disputeId}' not found`);
     }
@@ -74,7 +85,7 @@ export class DisputesController {
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "dispute.assign",
       entityType: "Dispute",
       entityId: dispute.id,
@@ -86,8 +97,10 @@ export class DisputesController {
   }
 
   @Post(":disputeId/resolve")
-  resolve(@Req() req: any, @Param("disputeId") disputeId: string, @Body() body: { resolution: string; actorUserId?: string }) {
-    const dispute = disputes.find((entry) => entry.id === disputeId);
+  @RequirePermissions("disputes:resolve")
+  resolve(@Req() req: { headers?: Record<string, unknown> }, @Param("disputeId") disputeId: string, @Body() body: { resolution: string }) {
+    const actor = resolveRequestContext(req);
+    const dispute = disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
     if (!dispute) {
       throw new NotFoundException(`Dispute '${disputeId}' not found`);
     }
@@ -101,7 +114,7 @@ export class DisputesController {
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "dispute.resolve",
       entityType: "Dispute",
       entityId: dispute.id,

@@ -1,17 +1,21 @@
 import { BadRequestException, Body, Controller, Param, Patch, Post, Req } from "@nestjs/common";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { RequirePermissions } from "../../common/permissions.decorator.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 @Controller()
 export class MilestonesController {
   @Post("v1/projects/:projectId/milestones")
-  create(@Req() req: any, @Param("projectId") projectId: string, @Body() body: { title: string; amount: number; sequence: number; actorUserId?: string }) {
+  @RequirePermissions("milestones:submit")
+  create(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string, @Body() body: { title: string; amount: number; sequence: number }) {
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     const id = `ms_${Date.now()}`;
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "milestone.create",
       entityType: "Milestone",
       entityId: id,
@@ -30,11 +34,13 @@ export class MilestonesController {
   }
 
   @Post("v1/milestones/:milestoneId/submit")
-  submit(@Req() req: any, @Param("milestoneId") milestoneId: string, @Body() body: { actorUserId?: string }) {
+  @RequirePermissions("milestones:submit")
+  submit(@Req() req: { headers?: Record<string, unknown> }, @Param("milestoneId") milestoneId: string) {
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "milestone.submit",
       entityType: "Milestone",
       entityId: milestoneId,
@@ -45,11 +51,13 @@ export class MilestonesController {
   }
 
   @Post("v1/milestones/:milestoneId/approve")
-  approve(@Req() req: any, @Param("milestoneId") milestoneId: string, @Body() body: { actorUserId?: string }) {
+  @RequirePermissions("milestones:approve")
+  approve(@Req() req: { headers?: Record<string, unknown> }, @Param("milestoneId") milestoneId: string) {
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "milestone.approve",
       entityType: "Milestone",
       entityId: milestoneId,
@@ -60,15 +68,17 @@ export class MilestonesController {
   }
 
   @Post("v1/milestones/:milestoneId/reject")
-  reject(@Req() req: any, @Param("milestoneId") milestoneId: string, @Body() body: { reason: string; actorUserId?: string }) {
+  @RequirePermissions("milestones:reject")
+  reject(@Req() req: { headers?: Record<string, unknown> }, @Param("milestoneId") milestoneId: string, @Body() body: { reason: string }) {
     if (!body.reason) {
       throw new BadRequestException("reason is required");
     }
 
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "milestone.reject",
       entityType: "Milestone",
       entityId: milestoneId,
@@ -79,15 +89,17 @@ export class MilestonesController {
   }
 
   @Patch("v1/projects/:projectId/status")
-  updateProjectStatus(@Req() req: any, @Param("projectId") projectId: string, @Body() body: { status: string; actorUserId?: string }) {
+  @RequirePermissions("milestones:submit")
+  updateProjectStatus(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string, @Body() body: { status: string }) {
     if (!body.status) {
       throw new BadRequestException("status is required");
     }
 
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "project.status.update",
       entityType: "Project",
       entityId: projectId,

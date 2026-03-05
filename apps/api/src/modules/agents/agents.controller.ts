@@ -2,10 +2,13 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { RequirePermissions } from "../../common/permissions.decorator.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 type AgentRun = {
   id: string;
+  tenantId: string;
   agentType: "pricing" | "job-planner" | "evidence-coach" | "risk" | "dispute";
   status: "queued" | "running" | "completed" | "failed";
   triggerType: "manual" | "event" | "schedule";
@@ -14,7 +17,6 @@ type AgentRun = {
 };
 
 const createAgentRunSchema = z.object({
-  actorUserId: z.string().min(1).default("usr_demo_001"),
   agentType: z.enum(["pricing", "job-planner", "evidence-coach", "risk", "dispute"]),
   triggerType: z.enum(["manual", "event", "schedule"]).default("manual"),
   correlationId: z.string().min(1)
@@ -25,7 +27,8 @@ const runs: AgentRun[] = [];
 @Controller("v1/agents")
 export class AgentsController {
   @Get("catalog")
-  catalog(@Req() req: any) {
+  @RequirePermissions("agents:run:create")
+  catalog(@Req() req: { headers?: Record<string, unknown> }) {
     const data = [
       { key: "pricing", purpose: "suggested pricing" },
       { key: "job-planner", purpose: "execution plan" },
@@ -37,13 +40,20 @@ export class AgentsController {
   }
 
   @Get("runs")
-  listRuns(@Req() req: any) {
-    return ok(resolveRequestId(req.headers ?? {}), runs);
+  @RequirePermissions("agents:run:create")
+  listRuns(@Req() req: { headers?: Record<string, unknown> }) {
+    const actor = resolveRequestContext(req);
+    return ok(
+      resolveRequestId(req.headers ?? {}),
+      runs.filter((entry) => entry.tenantId === actor.tenantId)
+    );
   }
 
   @Get("runs/:runId")
-  detail(@Req() req: any, @Param("runId") runId: string) {
-    const run = runs.find((entry) => entry.id === runId);
+  @RequirePermissions("agents:run:create")
+  detail(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
+    const actor = resolveRequestContext(req);
+    const run = runs.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
     if (!run) {
       throw new NotFoundException(`Agent run '${runId}' not found`);
     }
@@ -51,19 +61,21 @@ export class AgentsController {
   }
 
   @Post("runs")
-  createRun(@Req() req: any, @Body() body: Record<string, unknown>) {
+  @RequirePermissions("agents:run:create")
+  createRun(@Req() req: { headers?: Record<string, unknown> }, @Body() body: Record<string, unknown>) {
     const parsed = createAgentRunSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
 
-    const input = parsed.data;
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     const run: AgentRun = {
       id: `run_${Date.now()}`,
-      agentType: input.agentType,
-      triggerType: input.triggerType,
-      correlationId: input.correlationId,
+      tenantId: actor.tenantId,
+      agentType: parsed.data.agentType,
+      triggerType: parsed.data.triggerType,
+      correlationId: parsed.data.correlationId,
       status: "queued",
       createdAt: new Date().toISOString()
     };
@@ -71,7 +83,7 @@ export class AgentsController {
     runs.unshift(run);
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: input.actorUserId,
+      actorUserId: actor.userId,
       action: "agent.run.create",
       entityType: "AgentRun",
       entityId: run.id,
@@ -83,8 +95,10 @@ export class AgentsController {
   }
 
   @Post("runs/:runId/retry")
-  retry(@Req() req: any, @Param("runId") runId: string, @Body() body: { actorUserId?: string }) {
-    const run = runs.find((entry) => entry.id === runId);
+  @RequirePermissions("agents:run:retry")
+  retry(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
+    const actor = resolveRequestContext(req);
+    const run = runs.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
     if (!run) {
       throw new NotFoundException(`Agent run '${runId}' not found`);
     }
@@ -97,7 +111,7 @@ export class AgentsController {
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "agent.run.retry",
       entityType: "AgentRun",
       entityId: run.id,

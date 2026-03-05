@@ -1,18 +1,19 @@
 import { Controller, Get, Req } from "@nestjs/common";
 import { ok } from "../../common/api-response.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 @Controller("v1/auth")
 export class AuthController {
   @Get("me")
-  me(@Req() req: any) {
+  me(@Req() req: { headers?: Record<string, unknown> }) {
+    const actor = resolveRequestContext(req);
+
     return ok(resolveRequestId(req.headers ?? {}), {
-      userId: "usr_demo_001",
-      email: "ops@semse.local",
-      tenantId: "tnt_demo",
-      orgId: "org_ops",
-      roles: ["OPS_ADMIN"],
-      permissions: ["jobs:read", "disputes:write", "audit:read"]
+      userId: actor.userId,
+      tenantId: actor.tenantId,
+      orgId: actor.orgId,
+      roles: actor.roles
     });
   }
 }

@@ -2,6 +2,8 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { RequirePermissions } from "../../common/permissions.decorator.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 type Job = {
@@ -15,8 +17,6 @@ type Job = {
 };
 
 const createJobSchema = z.object({
-  tenantId: z.string().min(1).default("tnt_demo"),
-  actorUserId: z.string().min(1).default("usr_demo_001"),
   title: z.string().min(5).max(140),
   scope: z.string().min(10).max(5000),
   budgetMin: z.number().nonnegative().optional(),
@@ -32,19 +32,24 @@ const jobs: Job[] = [];
 @Controller("v1/jobs")
 export class JobsController {
   @Get()
-  list(@Req() req: any, @Query() query: Record<string, unknown>) {
+  @RequirePermissions("jobs:read")
+  list(@Req() req: { headers?: Record<string, unknown> }, @Query() query: Record<string, unknown>) {
     const parsed = listJobsQuerySchema.safeParse(query);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
 
-    const data = parsed.data.status ? jobs.filter((job) => job.status === parsed.data.status) : jobs;
+    const actor = resolveRequestContext(req);
+    const filtered = jobs.filter((job) => job.tenantId === actor.tenantId);
+    const data = parsed.data.status ? filtered.filter((job) => job.status === parsed.data.status) : filtered;
     return ok(resolveRequestId(req.headers ?? {}), data);
   }
 
   @Get(":jobId")
-  detail(@Req() req: any, @Param("jobId") jobId: string) {
-    const job = jobs.find((entry) => entry.id === jobId);
+  @RequirePermissions("jobs:read")
+  detail(@Req() req: { headers?: Record<string, unknown> }, @Param("jobId") jobId: string) {
+    const actor = resolveRequestContext(req);
+    const job = jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
     if (!job) {
       throw new NotFoundException(`Job '${jobId}' not found`);
     }
@@ -53,28 +58,29 @@ export class JobsController {
   }
 
   @Post()
-  create(@Req() req: any, @Body() body: Record<string, unknown>) {
+  @RequirePermissions("jobs:create")
+  create(@Req() req: { headers?: Record<string, unknown> }, @Body() body: Record<string, unknown>) {
     const parsed = createJobSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
 
-    const input = parsed.data;
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     const job: Job = {
       id: `job_${Date.now()}`,
-      tenantId: input.tenantId,
-      title: input.title,
-      scope: input.scope,
+      tenantId: actor.tenantId,
+      title: parsed.data.title,
+      scope: parsed.data.scope,
       status: "published",
-      budgetMin: input.budgetMin,
-      budgetMax: input.budgetMax
+      budgetMin: parsed.data.budgetMin,
+      budgetMax: parsed.data.budgetMax
     };
 
     jobs.push(job);
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: input.actorUserId,
+      actorUserId: actor.userId,
       action: "job.create",
       entityType: "Job",
       entityId: job.id,

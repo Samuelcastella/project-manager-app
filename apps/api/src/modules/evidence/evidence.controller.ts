@@ -1,12 +1,15 @@
 import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { RequirePermissions } from "../../common/permissions.decorator.js";
+import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
 
 @Controller()
 export class EvidenceController {
   @Post("v1/evidence/presign")
-  presign(@Req() req: any, @Body() body: { filename: string; contentType: string }) {
+  @RequirePermissions("evidence:write")
+  presign(@Req() req: { headers?: Record<string, unknown> }, @Body() body: { filename: string; contentType: string }) {
     const requestId = resolveRequestId(req.headers ?? {});
     const key = `evidence/${Date.now()}-${body.filename}`;
     return ok(requestId, {
@@ -17,12 +20,14 @@ export class EvidenceController {
   }
 
   @Post("v1/evidence")
-  register(@Req() req: any, @Body() body: { projectId: string; milestoneId?: string; key: string; kind: string; actorUserId?: string }) {
+  @RequirePermissions("evidence:write")
+  register(@Req() req: { headers?: Record<string, unknown> }, @Body() body: { projectId: string; milestoneId?: string; key: string; kind: string }) {
+    const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
     const id = `ev_${Date.now()}`;
     appendAudit({
       id: `aud_${Date.now()}`,
-      actorUserId: body.actorUserId ?? "usr_demo_001",
+      actorUserId: actor.userId,
       action: "evidence.register",
       entityType: "Evidence",
       entityId: id,
@@ -39,12 +44,14 @@ export class EvidenceController {
   }
 
   @Get("v1/projects/:projectId/evidence")
-  list(@Req() req: any, @Param("projectId") projectId: string) {
+  @RequirePermissions("jobs:read")
+  list(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string) {
     return ok(resolveRequestId(req.headers ?? {}), [{ id: "ev_demo", projectId, kind: "photo" }]);
   }
 
   @Get("v1/evidence/:evidenceId")
-  detail(@Req() req: any, @Param("evidenceId") evidenceId: string) {
+  @RequirePermissions("jobs:read")
+  detail(@Req() req: { headers?: Record<string, unknown> }, @Param("evidenceId") evidenceId: string) {
     return ok(resolveRequestId(req.headers ?? {}), { id: evidenceId, status: "available" });
   }
 }

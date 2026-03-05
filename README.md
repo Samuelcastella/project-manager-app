@@ -34,6 +34,14 @@ Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Es
 docker compose -f infra/docker/compose.semse-mvp.yml up -d
 ```
 
+### API scaffold: contexto y permisos por headers (temporal)
+
+Mientras se integra auth real, el scaffold de `apps/api` resuelve actor/tenant desde headers:
+- `x-user-id`
+- `x-tenant-id`
+- `x-org-id`
+- `x-roles` (CSV, por ejemplo: `OPS_ADMIN` o `CLIENT,PRO`)
+
 ## Badges
 
 Configurados para `Samuelcastella/project-manager-app`:
