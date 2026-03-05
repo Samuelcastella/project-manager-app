@@ -2,7 +2,13 @@ import { BadRequestException, Body, Controller, Get, Param, Patch, Query, Req } 
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
-import { findProjectOrThrow, getEscrowSummary, listProjects, updateProjectStatus } from "../../common/domain-service.js";
+import {
+  findProjectOrThrow,
+  getEscrowSummary,
+  listMilestonesByProject,
+  listProjects,
+  updateProjectStatus
+} from "../../common/domain-service.js";
 import { domainStore } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
@@ -61,6 +67,14 @@ export class ProjectsController {
     const actor = resolveRequestContext(req);
     const summary = getEscrowSummary({ tenantId: actor.tenantId, projectId });
     return ok(resolveRequestId(req.headers ?? {}), summary);
+  }
+
+  @Get(":projectId/milestones")
+  @RequirePermissions("jobs:read")
+  milestones(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string) {
+    const actor = resolveRequestContext(req);
+    const milestones = listMilestonesByProject({ tenantId: actor.tenantId, projectId });
+    return ok(resolveRequestId(req.headers ?? {}), milestones);
   }
 
   @Patch(":projectId/status")

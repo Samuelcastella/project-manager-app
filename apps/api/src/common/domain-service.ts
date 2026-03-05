@@ -5,6 +5,7 @@ import {
   type BidRecord,
   type EscrowRecord,
   type JobRecord,
+  type MilestoneRecord,
   type PaymentTxnRecord,
   type ProjectRecord
 } from "./domain-store.js";
@@ -188,6 +189,112 @@ export function findProjectOrThrow(input: { tenantId: string; projectId: string 
   return project;
 }
 
+export function createMilestone(input: {
+  tenantId: string;
+  projectId: string;
+  title: string;
+  amount: number;
+  sequence: number;
+}): MilestoneRecord {
+  findProjectOrThrow({ tenantId: input.tenantId, projectId: input.projectId });
+  if (input.amount <= 0) {
+    throw new BadRequestException("milestone amount must be greater than zero");
+  }
+
+  const duplicateSequence = domainStore.milestones.find(
+    (entry) =>
+      entry.tenantId === input.tenantId &&
+      entry.projectId === input.projectId &&
+      entry.sequence === input.sequence
+  );
+  if (duplicateSequence) {
+    throw new ConflictException(`milestone sequence '${input.sequence}' already exists`);
+  }
+
+  const milestone: MilestoneRecord = {
+    id: `ms_${Date.now()}`,
+    tenantId: input.tenantId,
+    projectId: input.projectId,
+    title: input.title,
+    amount: input.amount,
+    sequence: input.sequence,
+    status: "draft"
+  };
+  domainStore.milestones.push(milestone);
+  return milestone;
+}
+
+export function listMilestonesByProject(input: {
+  tenantId: string;
+  projectId: string;
+}): MilestoneRecord[] {
+  return domainStore.milestones
+    .filter((entry) => entry.tenantId === input.tenantId && entry.projectId === input.projectId)
+    .sort((a, b) => a.sequence - b.sequence);
+}
+
+export function findMilestoneOrThrow(input: {
+  tenantId: string;
+  milestoneId: string;
+}): MilestoneRecord {
+  const milestone = domainStore.milestones.find(
+    (entry) => entry.tenantId === input.tenantId && entry.id === input.milestoneId
+  );
+  if (!milestone) {
+    throw new NotFoundException(`Milestone '${input.milestoneId}' not found`);
+  }
+  return milestone;
+}
+
+export function submitMilestone(input: {
+  tenantId: string;
+  milestoneId: string;
+}): MilestoneRecord {
+  const milestone = findMilestoneOrThrow(input);
+  if (milestone.status === "submitted" || milestone.status === "approved" || milestone.status === "paid") {
+    return milestone;
+  }
+  if (milestone.status !== "draft" && milestone.status !== "rejected") {
+    throw new ConflictException(`cannot submit milestone in status '${milestone.status}'`);
+  }
+  milestone.status = "submitted";
+  milestone.rejectionReason = undefined;
+  return milestone;
+}
+
+export function approveMilestone(input: {
+  tenantId: string;
+  milestoneId: string;
+}): MilestoneRecord {
+  const milestone = findMilestoneOrThrow(input);
+  if (milestone.status === "approved" || milestone.status === "paid") {
+    return milestone;
+  }
+  if (milestone.status !== "submitted") {
+    throw new ConflictException(`cannot approve milestone in status '${milestone.status}'`);
+  }
+  milestone.status = "approved";
+  milestone.rejectionReason = undefined;
+  return milestone;
+}
+
+export function rejectMilestone(input: {
+  tenantId: string;
+  milestoneId: string;
+  reason: string;
+}): MilestoneRecord {
+  const milestone = findMilestoneOrThrow(input);
+  if (milestone.status === "paid") {
+    throw new ConflictException("cannot reject milestone in paid status");
+  }
+  if (milestone.status !== "submitted" && milestone.status !== "approved") {
+    throw new ConflictException(`cannot reject milestone in status '${milestone.status}'`);
+  }
+  milestone.status = "rejected";
+  milestone.rejectionReason = input.reason;
+  return milestone;
+}
+
 export function listProjects(input: {
   tenantId: string;
   status?: ProjectRecord["status"];
@@ -318,18 +425,25 @@ export function createEscrowDeposit(input: {
 export function releaseMilestonePayment(input: {
   tenantId: string;
   milestoneId: string;
-  projectId: string;
-  amount: number;
+  amount?: number;
 }): PaymentTxnRecord {
-  if (input.amount <= 0) {
+  const milestone = findMilestoneOrThrow({
+    tenantId: input.tenantId,
+    milestoneId: input.milestoneId
+  });
+  if (milestone.status !== "approved") {
+    throw new ConflictException(`milestone '${milestone.id}' must be approved before release`);
+  }
+  const amount = input.amount ?? milestone.amount;
+  if (amount <= 0) {
     throw new BadRequestException("release amount must be greater than zero");
   }
 
   const escrow = domainStore.escrows.find(
-    (entry) => entry.projectId === input.projectId && entry.tenantId === input.tenantId
+    (entry) => entry.projectId === milestone.projectId && entry.tenantId === input.tenantId
   );
   if (!escrow) {
-    throw new NotFoundException(`Escrow for project '${input.projectId}' not found`);
+    throw new NotFoundException(`Escrow for project '${milestone.projectId}' not found`);
   }
 
   const releasedSoFar = domainStore.paymentTxns
@@ -337,7 +451,7 @@ export function releaseMilestonePayment(input: {
     .reduce((acc, entry) => acc + entry.amount, 0);
   const available = escrow.totalAmount - releasedSoFar;
 
-  if (input.amount > available) {
+  if (amount > available) {
     throw new ConflictException("insufficient escrow funds for release");
   }
 
@@ -345,14 +459,15 @@ export function releaseMilestonePayment(input: {
     id: `ptx_${Date.now()}`,
     tenantId: input.tenantId,
     escrowId: escrow.id,
-    projectId: input.projectId,
+    projectId: milestone.projectId,
     milestoneId: input.milestoneId,
     type: "release",
-    amount: input.amount,
+    amount,
     status: "succeeded",
     createdAt: new Date().toISOString()
   };
   domainStore.paymentTxns.unshift(transaction);
+  milestone.status = "paid";
   return transaction;
 }
 

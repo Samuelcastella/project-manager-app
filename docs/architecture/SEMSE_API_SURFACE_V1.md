@@ -21,6 +21,7 @@
 - `PATCH /v1/projects/:projectId/status`
 - `GET /v1/projects/:projectId/escrow`
 - `GET /v1/projects/:projectId/payments`
+- `GET /v1/projects/:projectId/milestones`
 - `POST /v1/projects/:projectId/milestones`
 - `POST /v1/milestones/:milestoneId/submit`
 - `POST /v1/milestones/:milestoneId/approve`
@@ -28,7 +29,7 @@
 
 ## Payments / Escrow
 - `POST /v1/projects/:projectId/escrow/deposit`
-- `POST /v1/milestones/:milestoneId/escrow/release`
+- `POST /v1/milestones/:milestoneId/escrow/release` (amount opcional: usa monto del milestone)
 - `POST /v1/payments/webhook`
 
 ## Evidence

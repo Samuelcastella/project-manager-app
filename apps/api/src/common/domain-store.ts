@@ -36,6 +36,17 @@ export type ProjectRecord = {
   status: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
 };
 
+export type MilestoneRecord = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  title: string;
+  amount: number;
+  sequence: number;
+  status: "draft" | "submitted" | "approved" | "rejected" | "paid";
+  rejectionReason?: string;
+};
+
 export type EscrowRecord = {
   id: string;
   tenantId: string;
@@ -71,6 +82,7 @@ export const domainStore = {
   jobs: [] as JobRecord[],
   bids: [] as BidRecord[],
   projects: [] as ProjectRecord[],
+  milestones: [] as MilestoneRecord[],
   escrows: [] as EscrowRecord[],
   paymentTxns: [] as PaymentTxnRecord[],
   disputes: [] as DisputeRecord[],

@@ -13,8 +13,7 @@ const depositSchema = z.object({
 });
 
 const releaseSchema = z.object({
-  projectId: z.string().min(1),
-  amount: z.number().positive()
+  amount: z.number().positive().optional()
 });
 
 @Controller()
@@ -62,7 +61,6 @@ export class PaymentsController {
     const txn = releaseMilestonePayment({
       tenantId: actor.tenantId,
       milestoneId,
-      projectId: parsed.data.projectId,
       amount: parsed.data.amount
     });
 

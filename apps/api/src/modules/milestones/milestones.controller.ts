@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Param, Post, Req } from "@nestjs/common";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { approveMilestone, createMilestone, rejectMilestone, submitMilestone } from "../../common/domain-service.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
@@ -12,25 +13,24 @@ export class MilestonesController {
   create(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string, @Body() body: { title: string; amount: number; sequence: number }) {
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const id = `ms_${Date.now()}`;
+    const milestone = createMilestone({
+      tenantId: actor.tenantId,
+      projectId,
+      title: body.title,
+      amount: body.amount,
+      sequence: body.sequence
+    });
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
       action: "milestone.create",
       entityType: "Milestone",
-      entityId: id,
+      entityId: milestone.id,
       requestId,
       timestamp: new Date().toISOString()
     });
 
-    return ok(requestId, {
-      id,
-      projectId,
-      title: body.title,
-      amount: body.amount,
-      sequence: body.sequence,
-      status: "draft"
-    });
+    return ok(requestId, milestone);
   }
 
   @Post("v1/milestones/:milestoneId/submit")
@@ -38,6 +38,7 @@ export class MilestonesController {
   submit(@Req() req: { headers?: Record<string, unknown> }, @Param("milestoneId") milestoneId: string) {
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
+    const milestone = submitMilestone({ tenantId: actor.tenantId, milestoneId });
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -47,7 +48,7 @@ export class MilestonesController {
       requestId,
       timestamp: new Date().toISOString()
     });
-    return ok(requestId, { milestoneId, status: "submitted" });
+    return ok(requestId, milestone);
   }
 
   @Post("v1/milestones/:milestoneId/approve")
@@ -55,6 +56,7 @@ export class MilestonesController {
   approve(@Req() req: { headers?: Record<string, unknown> }, @Param("milestoneId") milestoneId: string) {
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
+    const milestone = approveMilestone({ tenantId: actor.tenantId, milestoneId });
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -64,7 +66,7 @@ export class MilestonesController {
       requestId,
       timestamp: new Date().toISOString()
     });
-    return ok(requestId, { milestoneId, status: "approved" });
+    return ok(requestId, milestone);
   }
 
   @Post("v1/milestones/:milestoneId/reject")
@@ -76,6 +78,11 @@ export class MilestonesController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
+    const milestone = rejectMilestone({
+      tenantId: actor.tenantId,
+      milestoneId,
+      reason: body.reason
+    });
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -85,7 +92,7 @@ export class MilestonesController {
       requestId,
       timestamp: new Date().toISOString()
     });
-    return ok(requestId, { milestoneId, status: "rejected", reason: body.reason });
+    return ok(requestId, milestone);
   }
 
 }
