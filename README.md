@@ -51,6 +51,8 @@ npm run test:unit
 ### Cobertura con c8 (con umbrales)
 
 ```bash
+npm run coverage
+# o:
 npm run test:coverage
 ```
 
