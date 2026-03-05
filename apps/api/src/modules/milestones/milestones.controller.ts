@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Param, Patch, Post, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Param, Post, Req } from "@nestjs/common";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
@@ -88,24 +88,4 @@ export class MilestonesController {
     return ok(requestId, { milestoneId, status: "rejected", reason: body.reason });
   }
 
-  @Patch("v1/projects/:projectId/status")
-  @RequirePermissions("milestones:submit")
-  updateProjectStatus(@Req() req: { headers?: Record<string, unknown> }, @Param("projectId") projectId: string, @Body() body: { status: string }) {
-    if (!body.status) {
-      throw new BadRequestException("status is required");
-    }
-
-    const actor = resolveRequestContext(req);
-    const requestId = resolveRequestId(req.headers ?? {});
-    appendAudit({
-      id: `aud_${Date.now()}`,
-      actorUserId: actor.userId,
-      action: "project.status.update",
-      entityType: "Project",
-      entityId: projectId,
-      requestId,
-      timestamp: new Date().toISOString()
-    });
-    return ok(requestId, { projectId, status: body.status });
-  }
 }

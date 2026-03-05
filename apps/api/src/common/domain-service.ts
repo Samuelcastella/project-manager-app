@@ -188,6 +188,91 @@ export function findProjectOrThrow(input: { tenantId: string; projectId: string 
   return project;
 }
 
+export function listProjects(input: {
+  tenantId: string;
+  status?: ProjectRecord["status"];
+  jobId?: string;
+}): ProjectRecord[] {
+  return domainStore.projects.filter((entry) => {
+    if (entry.tenantId !== input.tenantId) {
+      return false;
+    }
+    if (input.status && entry.status !== input.status) {
+      return false;
+    }
+    if (input.jobId && entry.jobId !== input.jobId) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function updateProjectStatus(input: {
+  tenantId: string;
+  projectId: string;
+  status: ProjectRecord["status"];
+}): ProjectRecord {
+  const project = findProjectOrThrow({ tenantId: input.tenantId, projectId: input.projectId });
+  const transitions: Record<ProjectRecord["status"], ProjectRecord["status"][]> = {
+    open: ["in_progress", "cancelled"],
+    in_progress: ["blocked", "completed", "cancelled"],
+    blocked: ["in_progress", "cancelled"],
+    completed: [],
+    cancelled: []
+  };
+
+  if (project.status === input.status) {
+    return project;
+  }
+
+  const allowed = transitions[project.status];
+  if (!allowed.includes(input.status)) {
+    throw new ConflictException(`invalid transition from ${project.status} to ${input.status}`);
+  }
+
+  project.status = input.status;
+  return project;
+}
+
+export function getEscrowSummary(input: {
+  tenantId: string;
+  projectId: string;
+}): {
+  escrow: EscrowRecord | null;
+  totalDeposited: number;
+  totalReleased: number;
+  available: number;
+} {
+  const escrow =
+    domainStore.escrows.find(
+      (entry) => entry.projectId === input.projectId && entry.tenantId === input.tenantId
+    ) ?? null;
+
+  if (!escrow) {
+    return {
+      escrow: null,
+      totalDeposited: 0,
+      totalReleased: 0,
+      available: 0
+    };
+  }
+
+  const related = domainStore.paymentTxns.filter((entry) => entry.escrowId === escrow.id);
+  const totalDeposited = related
+    .filter((entry) => entry.type === "deposit" && entry.status === "succeeded")
+    .reduce((acc, entry) => acc + entry.amount, 0);
+  const totalReleased = related
+    .filter((entry) => entry.type === "release" && entry.status === "succeeded")
+    .reduce((acc, entry) => acc + entry.amount, 0);
+
+  return {
+    escrow,
+    totalDeposited,
+    totalReleased,
+    available: totalDeposited - totalReleased
+  };
+}
+
 export function createEscrowDeposit(input: {
   tenantId: string;
   projectId: string;

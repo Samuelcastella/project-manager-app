@@ -16,12 +16,20 @@
 - `POST /v1/bids/:bidId/accept`
 
 ## Work Orders / Milestones
+- `GET /v1/projects`
 - `GET /v1/projects/:projectId`
 - `PATCH /v1/projects/:projectId/status`
+- `GET /v1/projects/:projectId/escrow`
+- `GET /v1/projects/:projectId/payments`
 - `POST /v1/projects/:projectId/milestones`
 - `POST /v1/milestones/:milestoneId/submit`
 - `POST /v1/milestones/:milestoneId/approve`
 - `POST /v1/milestones/:milestoneId/reject`
+
+## Payments / Escrow
+- `POST /v1/projects/:projectId/escrow/deposit`
+- `POST /v1/milestones/:milestoneId/escrow/release`
+- `POST /v1/payments/webhook`
 
 ## Evidence
 - `POST /v1/evidence/presign`
