@@ -149,6 +149,8 @@ npx playwright install chromium
 Se agregó pipeline en [`.github/workflows/ci.yml`](/home/yoni/project-manager-app/.github/workflows/ci.yml) con dos jobs:
 - `unit-coverage`: ejecuta `npm run test:coverage`, valida umbrales y publica resumen de cobertura en el run.
 - `e2e`: ejecuta Playwright (`chromium`) con `npm run test:e2e` y sube artefactos para debugging.
+- Smoke API de agentes en [`.github/workflows/api-smoke.yml`](/home/yoni/project-manager-app/.github/workflows/api-smoke.yml):
+  levanta `apps/api` y ejecuta `scripts/agent-flow-smoke.sh` (manual y en cambios relevantes).
 
 ### Reporte externo de cobertura (Codecov)
 
