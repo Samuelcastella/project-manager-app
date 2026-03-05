@@ -134,3 +134,9 @@ git push -u origin main
 ## Ejecutar app
 
 Abre `index.html` en tu navegador.
+
+## Gestión del proyecto
+
+- Changelog: [CHANGELOG.md](/home/yoni/project-manager-app/CHANGELOG.md)
+- Roadmap: [ROADMAP.md](/home/yoni/project-manager-app/ROADMAP.md)
+- Plantilla de PR: [pull_request_template.md](/home/yoni/project-manager-app/.github/pull_request_template.md)
