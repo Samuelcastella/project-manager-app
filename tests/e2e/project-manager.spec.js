@@ -59,3 +59,23 @@ test("guardar y aplicar preset de filtros", async ({ page }) => {
   await expect(page.locator("#filter-priority")).toHaveValue("alta");
   await expect(page.locator("#filter-owner")).toHaveValue("Ana");
 });
+
+test("métricas financieras y ranking por responsable", async ({ page }) => {
+  await page.locator("#name").fill("Proyecto A");
+  await page.locator("#owner").fill("Ana");
+  await page.locator("#dueDate").fill("2026-04-01");
+  await page.locator("#budget").fill("1000");
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+
+  await page.locator("#name").fill("Proyecto B");
+  await page.locator("#owner").fill("Bruno");
+  await page.locator("#status").selectOption("en-progreso");
+  await page.locator("#dueDate").fill("2026-04-02");
+  await page.locator("#budget").fill("2000");
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+
+  await expect(page.locator("#metric-budget-total")).toContainText("3000");
+  await expect(page.locator("#metric-budget-pending")).toContainText("1000");
+  await expect(page.locator("#metric-budget-progress")).toContainText("2000");
+  await expect(page.locator("#owner-budget-list .owner-budget-item").first()).toContainText("Bruno");
+});

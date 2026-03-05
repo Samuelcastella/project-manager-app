@@ -3,8 +3,8 @@
 ## v1.1.0 (corto plazo)
 
 - Métricas financieras:
-  - Total presupuesto por estado.
-  - Presupuesto por responsable.
+  - Total presupuesto por estado. ✅
+  - Presupuesto por responsable. ✅
 - Vista calendario:
   - Proyectos agrupados por día/semana.
   - Indicadores de vencimiento.

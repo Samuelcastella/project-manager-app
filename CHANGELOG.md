@@ -12,6 +12,8 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
   - `/` foco en búsqueda.
   - `n` nuevo proyecto.
   - `Esc` cancela edición/desenfoca.
+- Métricas financieras por estado (total, pendiente, en progreso, completado).
+- Ranking de presupuesto por responsable (top 5).
 
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.

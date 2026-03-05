@@ -119,6 +119,36 @@ body {
   font-size: 1.38rem;
 }
 
+.subtle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.owner-budget-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.owner-budget-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #d2dbc8;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.55rem 0.68rem;
+  font-size: 0.9rem;
+}
+
+.owner-budget-item strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.84rem;
+}
+
 .panel-head {
   display: flex;
   justify-content: space-between;

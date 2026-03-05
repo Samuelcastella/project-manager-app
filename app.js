@@ -67,7 +67,12 @@ const metrics = {
   progress: document.getElementById("metric-progress"),
   overdue: document.getElementById("metric-overdue"),
   completion: document.getElementById("metric-completion"),
+  budgetTotal: document.getElementById("metric-budget-total"),
+  budgetPending: document.getElementById("metric-budget-pending"),
+  budgetProgress: document.getElementById("metric-budget-progress"),
+  budgetCompleted: document.getElementById("metric-budget-completed"),
 };
+const ownerBudgetList = document.getElementById("owner-budget-list");
 
 const state = {
   projects: loadProjects(),
@@ -346,11 +351,57 @@ function renderMetrics() {
   const overdue = state.projects.filter((project) => isOverdue(project)).length;
   const completed = state.projects.filter((project) => project.status === "completado").length;
   const completion = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const budgetTotal = state.projects.reduce((acc, project) => acc + (project.budget || 0), 0);
+  const budgetPending = state.projects
+    .filter((project) => project.status === "pendiente")
+    .reduce((acc, project) => acc + (project.budget || 0), 0);
+  const budgetProgress = state.projects
+    .filter((project) => project.status === "en-progreso")
+    .reduce((acc, project) => acc + (project.budget || 0), 0);
+  const budgetCompleted = state.projects
+    .filter((project) => project.status === "completado")
+    .reduce((acc, project) => acc + (project.budget || 0), 0);
 
   metrics.total.textContent = String(total);
   metrics.progress.textContent = String(inProgress);
   metrics.overdue.textContent = String(overdue);
   metrics.completion.textContent = `${completion}%`;
+  metrics.budgetTotal.textContent = formatMoney(budgetTotal);
+  metrics.budgetPending.textContent = formatMoney(budgetPending);
+  metrics.budgetProgress.textContent = formatMoney(budgetProgress);
+  metrics.budgetCompleted.textContent = formatMoney(budgetCompleted);
+
+  const ownerBudgetMap = state.projects.reduce((acc, project) => {
+    const owner = project.owner || "Sin responsable";
+    acc.set(owner, (acc.get(owner) || 0) + (project.budget || 0));
+    return acc;
+  }, new Map());
+
+  const ownerRows = [...ownerBudgetMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  ownerBudgetList.innerHTML = "";
+  if (!ownerRows.length) {
+    const empty = document.createElement("li");
+    empty.className = "owner-budget-item";
+    empty.textContent = "Sin datos de presupuesto.";
+    ownerBudgetList.appendChild(empty);
+    return;
+  }
+
+  ownerRows.forEach(([owner, value]) => {
+    const row = document.createElement("li");
+    row.className = "owner-budget-item";
+
+    const name = document.createElement("span");
+    name.textContent = owner;
+    const amount = document.createElement("strong");
+    amount.textContent = formatMoney(value);
+
+    row.append(name, amount);
+    ownerBudgetList.appendChild(row);
+  });
 }
 
 function render() {
