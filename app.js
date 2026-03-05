@@ -62,6 +62,7 @@ const deletePresetBtn = document.getElementById("delete-preset");
 
 const resetFiltersBtn = document.getElementById("reset-filters");
 const clearCompletedBtn = document.getElementById("clear-completed");
+const undoActionBtn = document.getElementById("undo-action");
 const exportBtn = document.getElementById("export-btn");
 const importFileInput = document.getElementById("import-file");
 
@@ -86,6 +87,8 @@ const state = {
   currentView: "list",
   filterPresets: loadFilterPresets(),
   viewFilters: loadViewFilters(),
+  undoSnapshot: null,
+  undoLabel: "",
   calendarCursor: (() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -95,6 +98,55 @@ const state = {
 function setStatusMessage(message, type = "info") {
   statusMessage.textContent = message;
   statusMessage.dataset.type = type;
+}
+
+function cloneJSON(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function setUndoSnapshot(label) {
+  state.undoSnapshot = {
+    projects: cloneJSON(state.projects),
+    filterPresets: cloneJSON(state.filterPresets),
+    viewFilters: cloneJSON(state.viewFilters),
+  };
+  state.undoLabel = label;
+  undoActionBtn.disabled = false;
+}
+
+function clearUndoSnapshot() {
+  state.undoSnapshot = null;
+  state.undoLabel = "";
+  undoActionBtn.disabled = true;
+}
+
+function restoreSnapshot(snapshot) {
+  state.projects = snapshot.projects || [];
+  state.filterPresets = snapshot.filterPresets || {};
+  state.viewFilters = normalizeViewFilters(snapshot.viewFilters);
+
+  const okProjects = saveProjects();
+  const okPresets = saveFilterPresets();
+  const okViews = saveViewFilters();
+
+  if (okProjects && okPresets && okViews) {
+    applyViewFilters(state.currentView);
+    renderPresetOptions();
+    clearPresetSelection();
+    render();
+  }
+}
+
+function undoLastAction() {
+  if (!state.undoSnapshot) {
+    setStatusMessage("No hay acciones para deshacer.", "info");
+    return;
+  }
+
+  restoreSnapshot(state.undoSnapshot);
+  const label = state.undoLabel || "última acción";
+  clearUndoSnapshot();
+  setStatusMessage(`Se deshizo: ${label}.`, "success");
 }
 
 function safeJSONParse(raw, fallback = null) {
@@ -655,6 +707,7 @@ function performCardAction(eventTarget) {
     const confirmed = window.confirm("¿Eliminar este proyecto? Esta acción no se puede deshacer.");
     if (!confirmed) return true;
 
+    setUndoSnapshot("eliminar proyecto");
     state.projects = state.projects.filter((project) => project.id !== projectId);
     if (inputs.id.value === projectId) resetFormState();
     saveProjects();
@@ -664,6 +717,7 @@ function performCardAction(eventTarget) {
   }
 
   if (action === "toggle-status") {
+    setUndoSnapshot("cambiar estado");
     state.projects = state.projects.map((project) => {
       if (project.id !== projectId) return project;
       return { ...project, status: cycleStatus(project.status), updatedAt: Date.now() };
@@ -723,6 +777,7 @@ function saveCurrentPreset() {
   const cleanName = name.trim();
   if (!cleanName) return;
 
+  setUndoSnapshot(`guardar preset "${cleanName}"`);
   state.filterPresets[cleanName] = {
     ...getCurrentFilters(),
     view: state.currentView,
@@ -744,6 +799,7 @@ function deleteCurrentPreset() {
   const confirmed = window.confirm(`¿Borrar preset "${name}"?`);
   if (!confirmed) return;
 
+  setUndoSnapshot(`borrar preset "${name}"`);
   delete state.filterPresets[name];
   if (saveFilterPresets()) {
     renderPresetOptions();
@@ -761,6 +817,12 @@ function isTypingTarget(element) {
 
 function bindKeyboardShortcuts() {
   window.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      undoLastAction();
+      return;
+    }
+
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     if (event.key === "/" && !isTypingTarget(document.activeElement)) {
@@ -869,6 +931,7 @@ async function importProjectsFromFile(file) {
       return;
     }
 
+    setUndoSnapshot("importar backup");
     mergeProjects(importedProjects);
     if (importedPresets) state.filterPresets = importedPresets;
     if (importedViewFilters) state.viewFilters = importedViewFilters;
@@ -909,6 +972,7 @@ function bindEvents() {
         return;
       }
 
+      setUndoSnapshot("editar proyecto");
       const updated = {
         ...existing,
         name: data.name.trim(),
@@ -925,6 +989,7 @@ function bindEvents() {
       state.projects = state.projects.map((project) => (project.id === updated.id ? updated : project));
       setStatusMessage("Proyecto actualizado.", "success");
     } else {
+      setUndoSnapshot("crear proyecto");
       state.projects.push({
         id: crypto.randomUUID(),
         name: data.name.trim(),
@@ -1009,6 +1074,7 @@ function bindEvents() {
     const confirmed = window.confirm(`Se eliminarán ${totalCompleted} proyecto(s) completados. ¿Continuar?`);
     if (!confirmed) return;
 
+    setUndoSnapshot("borrar completados");
     state.projects = state.projects.filter((project) => project.status !== "completado");
     if (saveProjects()) {
       render();
@@ -1031,6 +1097,7 @@ function bindEvents() {
   });
 
   exportBtn.addEventListener("click", exportProjects);
+  undoActionBtn.addEventListener("click", undoLastAction);
 
   importFileInput.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];

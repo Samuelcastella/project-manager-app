@@ -20,6 +20,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Filtros recordados automáticamente por vista (lista, kanban, calendario).
 - Presets asociados a la vista activa.
 - Backup JSON completo (proyectos + presets + filtros por vista) en export/import.
+- Deshacer última acción (botón y atajo Ctrl/Cmd+Z) para cambios de datos.
 
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.

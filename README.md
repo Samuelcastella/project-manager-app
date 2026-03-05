@@ -22,6 +22,7 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Recordar filtros automáticamente por vista.
 - Presets de filtros guardados en `localStorage` (asociados por vista).
 - Export/import de backup completo (`proyectos + presets + filtros por vista`).
+- Deshacer última acción (botón + Ctrl/Cmd+Z).
 - Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
@@ -86,6 +87,7 @@ Escenarios actuales:
 - Resaltar celdas de calendario próximas a vencer.
 - Recordar filtros distintos entre lista y kanban.
 - Importar backup completo con configuración de usuario.
+- Deshacer eliminación de proyecto.
 
 Si es la primera vez:
 

@@ -190,3 +190,18 @@ test("importar backup completo restaura proyectos y configuración", async ({ pa
   await page.locator("#filter-preset").selectOption("Preset Restore");
   await expect(page.locator("#filter-priority")).toHaveValue("alta");
 });
+
+test("deshacer recupera proyecto eliminado", async ({ page }) => {
+  await page.locator("#name").fill("Proyecto Undo");
+  await page.locator("#owner").fill("Mauro");
+  await page.locator("#dueDate").fill("2026-03-25");
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+  await expect(page.locator(".project-card h3").first()).toHaveText("Proyecto Undo");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(".project-card button[data-action='delete']").first().click();
+  await expect(page.getByText("No hay proyectos para mostrar.")).toBeVisible();
+
+  await page.locator("#undo-action").click();
+  await expect(page.locator(".project-card h3").first()).toHaveText("Proyecto Undo");
+});
