@@ -14,6 +14,7 @@ export const rolePermissions: Record<string, string[]> = {
     "disputes:assign",
     "disputes:resolve",
     "ops:audit:read",
+    "ops:dashboard:read",
     "ops:risk:read",
     "agents:run:create",
     "agents:run:retry"

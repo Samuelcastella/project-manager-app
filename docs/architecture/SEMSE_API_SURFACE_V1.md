@@ -47,6 +47,7 @@
 ## Ops
 - `GET /v1/ops/audit`
 - `GET /v1/ops/risk-scores`
+- `GET /v1/ops/dashboard`
 - `POST /v1/ops/approvals/:approvalId/decision`
 
 ## Agents

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import {
+  type DisputeRecord,
   domainStore,
   type AgentRunRecord,
   type BidRecord,
@@ -177,6 +178,105 @@ export function retryAgentRun(input: { tenantId: string; runId: string }): Agent
 
   run.status = "queued";
   return run;
+}
+
+export function listDisputes(input: { tenantId: string }): DisputeRecord[] {
+  return domainStore.disputes.filter((entry) => entry.tenantId === input.tenantId);
+}
+
+export function createDispute(input: {
+  tenantId: string;
+  projectId: string;
+  reason: string;
+}): DisputeRecord {
+  findProjectOrThrow({ tenantId: input.tenantId, projectId: input.projectId });
+  const openForProject = domainStore.disputes.find(
+    (entry) =>
+      entry.tenantId === input.tenantId &&
+      entry.projectId === input.projectId &&
+      (entry.status === "open" || entry.status === "assigned")
+  );
+  if (openForProject) {
+    throw new ConflictException("an open dispute already exists for this project");
+  }
+
+  const dispute: DisputeRecord = {
+    id: `dsp_${Date.now()}`,
+    tenantId: input.tenantId,
+    projectId: input.projectId,
+    reason: input.reason,
+    status: "open"
+  };
+  domainStore.disputes.unshift(dispute);
+  return dispute;
+}
+
+export function assignDispute(input: {
+  tenantId: string;
+  disputeId: string;
+  assigneeUserId: string;
+}): DisputeRecord {
+  const dispute = findDisputeOrThrow({ tenantId: input.tenantId, disputeId: input.disputeId });
+  if (dispute.status === "resolved") {
+    throw new ConflictException("cannot assign a resolved dispute");
+  }
+  dispute.assigneeUserId = input.assigneeUserId;
+  dispute.status = "assigned";
+  return dispute;
+}
+
+export function resolveDispute(input: {
+  tenantId: string;
+  disputeId: string;
+  resolution: string;
+}): DisputeRecord {
+  const dispute = findDisputeOrThrow({ tenantId: input.tenantId, disputeId: input.disputeId });
+  if (dispute.status === "resolved") {
+    return dispute;
+  }
+
+  dispute.status = "resolved";
+  dispute.resolution = input.resolution;
+  return dispute;
+}
+
+export function getOpsDashboard(input: { tenantId: string }): {
+  jobs: { total: number; published: number; awarded: number };
+  projects: { total: number; open: number; inProgress: number; blocked: number; completed: number };
+  disputes: { total: number; open: number; assigned: number; resolved: number };
+  agents: { totalRuns: number; queued: number; running: number; failed: number };
+} {
+  const jobs = domainStore.jobs.filter((entry) => entry.tenantId === input.tenantId);
+  const projects = domainStore.projects.filter((entry) => entry.tenantId === input.tenantId);
+  const disputes = domainStore.disputes.filter((entry) => entry.tenantId === input.tenantId);
+  const runs = domainStore.agentRuns.filter((entry) => entry.tenantId === input.tenantId);
+
+  return {
+    jobs: {
+      total: jobs.length,
+      published: jobs.filter((entry) => entry.status === "published").length,
+      awarded: jobs.filter((entry) => entry.status === "awarded").length
+    },
+    projects: {
+      total: projects.length,
+      open: projects.filter((entry) => entry.status === "open").length,
+      inProgress: projects.filter((entry) => entry.status === "in_progress").length,
+      blocked: projects.filter((entry) => entry.status === "blocked").length,
+      completed: projects.filter((entry) => entry.status === "completed").length
+    },
+    disputes: {
+      total: disputes.length,
+      open: disputes.filter((entry) => entry.status === "open").length,
+      assigned: disputes.filter((entry) => entry.status === "assigned").length,
+      resolved: disputes.filter((entry) => entry.status === "resolved").length
+    },
+    agents: {
+      totalRuns: runs.length,
+      queued: runs.filter((entry) => entry.status === "queued").length,
+      running: runs.filter((entry) => entry.status === "running").length,
+      failed: runs.filter((entry) => entry.status === "failed").length
+    }
+  };
 }
 
 export function findProjectOrThrow(input: { tenantId: string; projectId: string }): ProjectRecord {
@@ -492,4 +592,14 @@ function ensureProjectForAcceptedBid(input: {
   };
   domainStore.projects.unshift(created);
   return created;
+}
+
+function findDisputeOrThrow(input: { tenantId: string; disputeId: string }): DisputeRecord {
+  const dispute = domainStore.disputes.find(
+    (entry) => entry.tenantId === input.tenantId && entry.id === input.disputeId
+  );
+  if (!dispute) {
+    throw new NotFoundException(`Dispute '${input.disputeId}' not found`);
+  }
+  return dispute;
 }
