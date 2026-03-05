@@ -4,10 +4,10 @@ Aplicación web local para gestión de proyectos, sin dependencias de runtime.
 
 ## Badges
 
-Configurados para `yoni/project-manager-app`:
+Configurados para `Samuelcastella/project-manager-app`:
 
-[![CI](https://github.com/yoni/project-manager-app/actions/workflows/ci.yml/badge.svg)](https://github.com/yoni/project-manager-app/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/yoni/project-manager-app/graph/badge.svg)](https://codecov.io/gh/yoni/project-manager-app)
+[![CI](https://github.com/Samuelcastella/project-manager-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Samuelcastella/project-manager-app/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Samuelcastella/project-manager-app/graph/badge.svg)](https://codecov.io/gh/Samuelcastella/project-manager-app)
 
 ## Funcionalidades
 
@@ -111,7 +111,7 @@ git init
 git add .
 git commit -m "feat: project manager app with tests and CI"
 git branch -M main
-git remote add origin git@github.com:yoni/project-manager-app.git
+git remote add origin git@github.com:Samuelcastella/project-manager-app.git
 git push -u origin main
 ```
 
