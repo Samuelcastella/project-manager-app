@@ -8,6 +8,7 @@ export const rolePermissions: Record<string, string[]> = {
     "bids:read",
     "bids:create",
     "bids:accept",
+    "milestones:submit",
     "milestones:approve",
     "milestones:reject",
     "evidence:write",
