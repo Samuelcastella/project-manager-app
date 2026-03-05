@@ -2,19 +2,10 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { domainStore, type BidRecord } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
-
-type Bid = {
-  id: string;
-  jobId: string;
-  tenantId: string;
-  proOrgId: string;
-  amount: number;
-  etaDays: number;
-  status: "submitted" | "accepted" | "rejected";
-};
 
 const createBidSchema = z.object({
   proOrgId: z.string().min(1),
@@ -22,15 +13,13 @@ const createBidSchema = z.object({
   etaDays: z.number().int().positive()
 });
 
-const bids: Bid[] = [];
-
 @Controller()
 export class BidsController {
   @Get("v1/jobs/:jobId/bids")
   @RequirePermissions("bids:read")
   list(@Req() req: { headers?: Record<string, unknown> }, @Param("jobId") jobId: string) {
     const actor = resolveRequestContext(req);
-    const data = bids.filter((bid) => bid.jobId === jobId && bid.tenantId === actor.tenantId);
+    const data = domainStore.bids.filter((bid) => bid.jobId === jobId && bid.tenantId === actor.tenantId);
     return ok(resolveRequestId(req.headers ?? {}), data);
   }
 
@@ -43,8 +32,16 @@ export class BidsController {
     }
 
     const actor = resolveRequestContext(req);
+    const job = domainStore.jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
+    if (!job) {
+      throw new NotFoundException(`Job '${jobId}' not found`);
+    }
+    if (job.status !== "published") {
+      throw new BadRequestException("bids can only be created for published jobs");
+    }
+
     const requestId = resolveRequestId(req.headers ?? {});
-    const bid: Bid = {
+    const bid: BidRecord = {
       id: `bid_${Date.now()}`,
       jobId,
       tenantId: actor.tenantId,
@@ -54,7 +51,7 @@ export class BidsController {
       status: "submitted"
     };
 
-    bids.push(bid);
+    domainStore.bids.push(bid);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -72,12 +69,27 @@ export class BidsController {
   @RequirePermissions("bids:accept")
   accept(@Req() req: { headers?: Record<string, unknown> }, @Param("bidId") bidId: string) {
     const actor = resolveRequestContext(req);
-    const bid = bids.find((entry) => entry.id === bidId && entry.tenantId === actor.tenantId);
+    const bid = domainStore.bids.find((entry) => entry.id === bidId && entry.tenantId === actor.tenantId);
     if (!bid) {
       throw new NotFoundException(`Bid '${bidId}' not found`);
     }
 
+    const job = domainStore.jobs.find((entry) => entry.id === bid.jobId && entry.tenantId === actor.tenantId);
+    if (!job) {
+      throw new NotFoundException(`Job '${bid.jobId}' not found`);
+    }
+
+    if (job.status !== "published") {
+      throw new BadRequestException("job is not eligible for bid acceptance");
+    }
+
+    for (const candidate of domainStore.bids) {
+      if (candidate.jobId === bid.jobId && candidate.tenantId === actor.tenantId && candidate.id !== bid.id) {
+        candidate.status = "rejected";
+      }
+    }
     bid.status = "accepted";
+    job.status = "awarded";
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,

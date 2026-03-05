@@ -2,26 +2,15 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { domainStore, type DisputeRecord } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
-
-type Dispute = {
-  id: string;
-  tenantId: string;
-  projectId: string;
-  reason: string;
-  status: "open" | "assigned" | "resolved";
-  assigneeUserId?: string;
-  resolution?: string;
-};
 
 const createDisputeSchema = z.object({
   projectId: z.string().min(1),
   reason: z.string().min(5).max(1000)
 });
-
-const disputes: Dispute[] = [];
 
 @Controller("v1/disputes")
 export class DisputesController {
@@ -31,7 +20,7 @@ export class DisputesController {
     const actor = resolveRequestContext(req);
     return ok(
       resolveRequestId(req.headers ?? {}),
-      disputes.filter((entry) => entry.tenantId === actor.tenantId)
+      domainStore.disputes.filter((entry) => entry.tenantId === actor.tenantId)
     );
   }
 
@@ -45,7 +34,7 @@ export class DisputesController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const dispute: Dispute = {
+    const dispute: DisputeRecord = {
       id: `dsp_${Date.now()}`,
       tenantId: actor.tenantId,
       projectId: parsed.data.projectId,
@@ -53,7 +42,7 @@ export class DisputesController {
       status: "open"
     };
 
-    disputes.unshift(dispute);
+    domainStore.disputes.unshift(dispute);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -71,7 +60,7 @@ export class DisputesController {
   @RequirePermissions("disputes:assign")
   assign(@Req() req: { headers?: Record<string, unknown> }, @Param("disputeId") disputeId: string, @Body() body: { assigneeUserId: string }) {
     const actor = resolveRequestContext(req);
-    const dispute = disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
+    const dispute = domainStore.disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
     if (!dispute) {
       throw new NotFoundException(`Dispute '${disputeId}' not found`);
     }
@@ -100,7 +89,7 @@ export class DisputesController {
   @RequirePermissions("disputes:resolve")
   resolve(@Req() req: { headers?: Record<string, unknown> }, @Param("disputeId") disputeId: string, @Body() body: { resolution: string }) {
     const actor = resolveRequestContext(req);
-    const dispute = disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
+    const dispute = domainStore.disputes.find((entry) => entry.id === disputeId && entry.tenantId === actor.tenantId);
     if (!dispute) {
       throw new NotFoundException(`Dispute '${disputeId}' not found`);
     }

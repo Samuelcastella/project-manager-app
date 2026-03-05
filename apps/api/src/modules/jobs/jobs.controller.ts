@@ -2,19 +2,10 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { domainStore, type JobRecord } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
-
-type Job = {
-  id: string;
-  tenantId: string;
-  title: string;
-  scope: string;
-  status: "draft" | "published" | "awarded" | "cancelled";
-  budgetMin?: number;
-  budgetMax?: number;
-};
 
 const createJobSchema = z.object({
   title: z.string().min(5).max(140),
@@ -27,8 +18,6 @@ const listJobsQuerySchema = z.object({
   status: z.enum(["draft", "published", "awarded", "cancelled"]).optional()
 });
 
-const jobs: Job[] = [];
-
 @Controller("v1/jobs")
 export class JobsController {
   @Get()
@@ -40,7 +29,7 @@ export class JobsController {
     }
 
     const actor = resolveRequestContext(req);
-    const filtered = jobs.filter((job) => job.tenantId === actor.tenantId);
+    const filtered = domainStore.jobs.filter((job) => job.tenantId === actor.tenantId);
     const data = parsed.data.status ? filtered.filter((job) => job.status === parsed.data.status) : filtered;
     return ok(resolveRequestId(req.headers ?? {}), data);
   }
@@ -49,7 +38,7 @@ export class JobsController {
   @RequirePermissions("jobs:read")
   detail(@Req() req: { headers?: Record<string, unknown> }, @Param("jobId") jobId: string) {
     const actor = resolveRequestContext(req);
-    const job = jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
+    const job = domainStore.jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
     if (!job) {
       throw new NotFoundException(`Job '${jobId}' not found`);
     }
@@ -67,7 +56,7 @@ export class JobsController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const job: Job = {
+    const job: JobRecord = {
       id: `job_${Date.now()}`,
       tenantId: actor.tenantId,
       title: parsed.data.title,
@@ -77,7 +66,7 @@ export class JobsController {
       budgetMax: parsed.data.budgetMax
     };
 
-    jobs.push(job);
+    domainStore.jobs.push(job);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,

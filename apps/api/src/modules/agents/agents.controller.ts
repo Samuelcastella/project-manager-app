@@ -2,27 +2,16 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
+import { domainStore, type AgentRunRecord } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
-
-type AgentRun = {
-  id: string;
-  tenantId: string;
-  agentType: "pricing" | "job-planner" | "evidence-coach" | "risk" | "dispute";
-  status: "queued" | "running" | "completed" | "failed";
-  triggerType: "manual" | "event" | "schedule";
-  correlationId: string;
-  createdAt: string;
-};
 
 const createAgentRunSchema = z.object({
   agentType: z.enum(["pricing", "job-planner", "evidence-coach", "risk", "dispute"]),
   triggerType: z.enum(["manual", "event", "schedule"]).default("manual"),
   correlationId: z.string().min(1)
 });
-
-const runs: AgentRun[] = [];
 
 @Controller("v1/agents")
 export class AgentsController {
@@ -45,7 +34,7 @@ export class AgentsController {
     const actor = resolveRequestContext(req);
     return ok(
       resolveRequestId(req.headers ?? {}),
-      runs.filter((entry) => entry.tenantId === actor.tenantId)
+      domainStore.agentRuns.filter((entry) => entry.tenantId === actor.tenantId)
     );
   }
 
@@ -53,7 +42,7 @@ export class AgentsController {
   @RequirePermissions("agents:run:create")
   detail(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
     const actor = resolveRequestContext(req);
-    const run = runs.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
+    const run = domainStore.agentRuns.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
     if (!run) {
       throw new NotFoundException(`Agent run '${runId}' not found`);
     }
@@ -70,7 +59,7 @@ export class AgentsController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const run: AgentRun = {
+    const run: AgentRunRecord = {
       id: `run_${Date.now()}`,
       tenantId: actor.tenantId,
       agentType: parsed.data.agentType,
@@ -80,7 +69,7 @@ export class AgentsController {
       createdAt: new Date().toISOString()
     };
 
-    runs.unshift(run);
+    domainStore.agentRuns.unshift(run);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -98,7 +87,7 @@ export class AgentsController {
   @RequirePermissions("agents:run:retry")
   retry(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
     const actor = resolveRequestContext(req);
-    const run = runs.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
+    const run = domainStore.agentRuns.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
     if (!run) {
       throw new NotFoundException(`Agent run '${runId}' not found`);
     }
