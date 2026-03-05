@@ -97,3 +97,20 @@ test("vista calendario muestra proyectos por fecha límite", async ({ page }) =>
   await expect(page.locator("#calendar-view")).toBeVisible();
   await expect(page.locator("#calendar-grid .calendar-chip").first()).toContainText("Proyecto Calendario");
 });
+
+test("vista calendario marca celdas próximas a vencer", async ({ page }) => {
+  const nearDate = await page.evaluate(() => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
+
+  await page.locator("#name").fill("Entrega Cercana");
+  await page.locator("#owner").fill("Sofía");
+  await page.locator("#dueDate").fill(nearDate);
+  await page.locator("#status").selectOption("pendiente");
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+
+  await page.locator("#view-calendar").click();
+  await expect(page.locator(".calendar-cell-due-soon .calendar-chip").first()).toContainText("Entrega Cercana");
+});

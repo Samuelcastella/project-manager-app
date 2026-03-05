@@ -14,6 +14,7 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Crear y editar proyectos.
 - Campos: nombre, responsable, estado, prioridad, fecha, presupuesto, etiquetas y descripción.
 - Vista lista, kanban y calendario mensual.
+- Indicadores de urgencia en calendario (vencido / próximo a vencer).
 - Métricas en tiempo real: total, en progreso, vencidos y % completado.
 - Métricas financieras: presupuesto total y por estado.
 - Ranking de presupuesto por responsable.
@@ -80,6 +81,7 @@ Escenarios actuales:
 - Guardar y aplicar preset de filtros.
 - Calcular métricas financieras y ranking por responsable.
 - Mostrar proyectos en vista calendario por fecha límite.
+- Resaltar celdas de calendario próximas a vencer.
 
 Si es la primera vez:
 

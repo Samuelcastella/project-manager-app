@@ -177,6 +177,13 @@ function getMonthLabel(date) {
   }).format(date);
 }
 
+function daysUntil(dateIso) {
+  const target = new Date(`${dateIso}T00:00:00`);
+  const today = new Date(`${todayISO()}T00:00:00`);
+  const diffMs = target.getTime() - today.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
 function buildMonthMatrix(cursorDate) {
   const year = cursorDate.getFullYear();
   const month = cursorDate.getMonth();
@@ -421,9 +428,20 @@ function renderCalendar(items) {
       hint.textContent = "Sin entregas";
       box.appendChild(hint);
     } else {
+      const hasOverdue = itemsInDay.some((project) => project.status !== "completado" && daysUntil(project.dueDate) < 0);
+      const hasDueSoon = itemsInDay.some((project) => {
+        const remaining = daysUntil(project.dueDate);
+        return project.status !== "completado" && remaining >= 0 && remaining <= 3;
+      });
+
+      if (hasOverdue) box.classList.add("calendar-cell-overdue");
+      else if (hasDueSoon) box.classList.add("calendar-cell-due-soon");
+
       itemsInDay.slice(0, 3).forEach((project) => {
         const chip = document.createElement("p");
         chip.className = "calendar-chip";
+        chip.dataset.status = project.status;
+        chip.dataset.priority = project.priority;
         chip.textContent = project.name;
         chip.title = `${project.name} (${project.owner})`;
         box.appendChild(chip);
