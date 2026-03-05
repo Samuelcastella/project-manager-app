@@ -21,6 +21,7 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Filtros avanzados (texto, estado, prioridad, responsable) y ordenamiento.
 - Recordar filtros automáticamente por vista.
 - Presets de filtros guardados en `localStorage` (asociados por vista).
+- Export/import de backup completo (`proyectos + presets + filtros por vista`).
 - Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
@@ -84,6 +85,7 @@ Escenarios actuales:
 - Mostrar proyectos en vista calendario por fecha límite.
 - Resaltar celdas de calendario próximas a vencer.
 - Recordar filtros distintos entre lista y kanban.
+- Importar backup completo con configuración de usuario.
 
 Si es la primera vez:
 

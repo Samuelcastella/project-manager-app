@@ -142,3 +142,51 @@ test("filtros se recuerdan por vista (lista/kanban)", async ({ page }) => {
   await expect(page.locator("#list-view")).toBeVisible();
   await expect(page.locator("#filter-status")).toHaveValue("pendiente");
 });
+
+test("importar backup completo restaura proyectos y configuración", async ({ page }) => {
+  const backup = {
+    version: 2,
+    exportedAt: "2026-03-05T00:00:00.000Z",
+    projects: [
+      {
+        id: "p-backup-1",
+        name: "Proyecto Restore",
+        owner: "Nora",
+        status: "pendiente",
+        priority: "alta",
+        dueDate: "2026-03-20",
+        budget: 1200,
+        tags: ["restore"],
+        description: "Importado desde backup",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ],
+    filterPresets: {
+      "Preset Restore": {
+        search: "",
+        status: "pendiente",
+        priority: "alta",
+        owner: "Nora",
+        sortBy: "dueDate",
+        view: "list",
+      },
+    },
+    viewFilters: {
+      list: { search: "", status: "pendiente", priority: "alta", owner: "Nora", sortBy: "dueDate" },
+      kanban: { search: "", status: "en-progreso", priority: "todas", owner: "", sortBy: "dueDate" },
+      calendar: { search: "", status: "todos", priority: "baja", owner: "", sortBy: "dueDate" },
+    },
+  };
+
+  await page.locator("#import-file").setInputFiles({
+    name: "backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup), "utf8"),
+  });
+
+  await expect(page.locator(".project-card h3").first()).toHaveText("Proyecto Restore");
+  await expect(page.locator("#filter-status")).toHaveValue("pendiente");
+  await page.locator("#filter-preset").selectOption("Preset Restore");
+  await expect(page.locator("#filter-priority")).toHaveValue("alta");
+});

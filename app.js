@@ -133,8 +133,7 @@ function loadFilterPresets() {
   if (!raw) return {};
 
   const parsed = safeJSONParse(raw, {});
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-  return parsed;
+  return normalizeFilterPresets(parsed);
 }
 
 function saveFilterPresets() {
@@ -151,31 +150,42 @@ function getDefaultFilters() {
   };
 }
 
+function sanitizeFilters(input) {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    search: String(source.search || ""),
+    status: String(source.status || "todos"),
+    priority: String(source.priority || "todas"),
+    owner: String(source.owner || ""),
+    sortBy: String(source.sortBy || "dueDate"),
+  };
+}
+
+function normalizeViewFilters(input) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  return {
+    list: sanitizeFilters(source.list),
+    kanban: sanitizeFilters(source.kanban),
+    calendar: sanitizeFilters(source.calendar),
+  };
+}
+
+function normalizeFilterPresets(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const entries = Object.entries(input)
+    .filter(([name, value]) => name && value && typeof value === "object" && !Array.isArray(value))
+    .map(([name, value]) => [String(name), { ...sanitizeFilters(value), view: String(value.view || "list") }]);
+  return Object.fromEntries(entries);
+}
+
 function loadViewFilters() {
   const raw = readStorage(VIEW_FILTERS_KEY);
-  const defaults = {
-    list: getDefaultFilters(),
-    kanban: getDefaultFilters(),
-    calendar: getDefaultFilters(),
-  };
+  const defaults = normalizeViewFilters({});
 
   if (!raw) return defaults;
   const parsed = safeJSONParse(raw, null);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-
-  ["list", "kanban", "calendar"].forEach((view) => {
-    const current = parsed[view];
-    if (!current || typeof current !== "object" || Array.isArray(current)) return;
-    defaults[view] = {
-      search: String(current.search || ""),
-      status: String(current.status || "todos"),
-      priority: String(current.priority || "todas"),
-      owner: String(current.owner || ""),
-      sortBy: String(current.sortBy || "dueDate"),
-    };
-  });
-
-  return defaults;
+  return normalizeViewFilters(parsed);
 }
 
 function saveViewFilters() {
@@ -804,17 +814,25 @@ function bindKeyboardShortcuts() {
 }
 
 function exportProjects() {
-  const blob = new Blob([JSON.stringify(state.projects, null, 2)], { type: "application/json" });
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    projects: state.projects,
+    filterPresets: state.filterPresets,
+    viewFilters: state.viewFilters,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `proyectos-${todayISO()}.json`;
+  anchor.download = `project-manager-backup-${todayISO()}.json`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
 
-  setStatusMessage("Exportación completada.", "success");
+  setStatusMessage("Backup completo exportado.", "success");
 }
 
 function mergeProjects(importedProjects) {
@@ -834,18 +852,38 @@ async function importProjectsFromFile(file) {
   try {
     const text = await file.text();
     const parsed = safeJSONParse(text, null);
-    if (!Array.isArray(parsed)) {
-      setStatusMessage("El JSON debe contener un arreglo de proyectos.", "error");
+    let importedProjects = [];
+    let importedPresets = null;
+    let importedViewFilters = null;
+
+    if (Array.isArray(parsed)) {
+      // Backward compatibility: old format with only project array.
+      importedProjects = parsed.map((item) => normalizeProject(item)).filter(Boolean);
+    } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const rawProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
+      importedProjects = rawProjects.map((item) => normalizeProject(item)).filter(Boolean);
+      importedPresets = normalizeFilterPresets(parsed.filterPresets);
+      importedViewFilters = normalizeViewFilters(parsed.viewFilters);
+    } else {
+      setStatusMessage("Formato JSON no compatible.", "error");
       return;
     }
 
-    const normalized = parsed.map((item) => normalizeProject(item)).filter(Boolean);
-    mergeProjects(normalized);
+    mergeProjects(importedProjects);
+    if (importedPresets) state.filterPresets = importedPresets;
+    if (importedViewFilters) state.viewFilters = importedViewFilters;
 
-    if (saveProjects()) {
+    const okProjects = saveProjects();
+    const okPresets = saveFilterPresets();
+    const okViewFilters = saveViewFilters();
+
+    if (okProjects && okPresets && okViewFilters) {
+      applyViewFilters(state.currentView);
+      renderPresetOptions();
+      clearPresetSelection();
       resetFormState();
       render();
-      setStatusMessage(`Importación completada: ${normalized.length} proyecto(s).`, "success");
+      setStatusMessage(`Importación completada: ${importedProjects.length} proyecto(s).`, "success");
     }
   } catch {
     setStatusMessage("No se pudo importar el archivo JSON.", "error");

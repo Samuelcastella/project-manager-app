@@ -19,6 +19,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Indicadores visuales en calendario para vencidos y próximos a vencer.
 - Filtros recordados automáticamente por vista (lista, kanban, calendario).
 - Presets asociados a la vista activa.
+- Backup JSON completo (proyectos + presets + filtros por vista) en export/import.
 
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.
