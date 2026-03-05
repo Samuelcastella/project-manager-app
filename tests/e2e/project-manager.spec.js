@@ -114,3 +114,14 @@ test("vista calendario marca celdas próximas a vencer", async ({ page }) => {
   await page.locator("#view-calendar").click();
   await expect(page.locator(".calendar-cell-due-soon .calendar-chip").first()).toContainText("Entrega Cercana");
 });
+
+test("atajos de vista: l, k y c", async ({ page }) => {
+  await page.keyboard.press("k");
+  await expect(page.locator("#kanban-view")).toBeVisible();
+
+  await page.keyboard.press("c");
+  await expect(page.locator("#calendar-view")).toBeVisible();
+
+  await page.keyboard.press("l");
+  await expect(page.locator("#list-view")).toBeVisible();
+});

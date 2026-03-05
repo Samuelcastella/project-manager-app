@@ -705,6 +705,28 @@ function bindKeyboardShortcuts() {
       return;
     }
 
+    if (!isTypingTarget(document.activeElement)) {
+      const key = event.key.toLowerCase();
+      if (key === "l") {
+        event.preventDefault();
+        setView("list");
+        setStatusMessage("Vista lista activa.", "info");
+        return;
+      }
+      if (key === "k") {
+        event.preventDefault();
+        setView("kanban");
+        setStatusMessage("Vista kanban activa.", "info");
+        return;
+      }
+      if (key === "c") {
+        event.preventDefault();
+        setView("calendar");
+        setStatusMessage("Vista calendario activa.", "info");
+        return;
+      }
+    }
+
     if (event.key === "Escape") {
       if (inputs.id.value) {
         resetFormState();

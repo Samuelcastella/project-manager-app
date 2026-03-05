@@ -20,7 +20,7 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Ranking de presupuesto por responsable.
 - Filtros avanzados (texto, estado, prioridad, responsable) y ordenamiento.
 - Presets de filtros guardados en `localStorage`.
-- Atajos de teclado (`/`, `n`, `Esc`).
+- Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
 - Exportar e importar proyectos en JSON.

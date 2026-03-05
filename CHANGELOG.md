@@ -12,6 +12,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
   - `/` foco en búsqueda.
   - `n` nuevo proyecto.
   - `Esc` cancela edición/desenfoca.
+  - `l`, `k`, `c` cambian entre Lista/Kanban/Calendario.
 - Métricas financieras por estado (total, pendiente, en progreso, completado).
 - Ranking de presupuesto por responsable (top 5).
 - Vista calendario mensual con proyectos agrupados por fecha límite.
