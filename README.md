@@ -2,6 +2,18 @@
 
 Aplicación web local para gestión de proyectos, sin dependencias de runtime.
 
+## Evolución a SEMSEproject
+
+Este repositorio ya tiene una base funcional (UI + validaciones + tests + CI).  
+Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Escrow + Trust)** se documentó el blueprint en:
+
+- [docs/architecture/SEMSEPROJECT_BLUEPRINT.md](/home/yoni/project-manager-app/docs/architecture/SEMSEPROJECT_BLUEPRINT.md)
+- [docs/architecture/SEMSE_IMPLEMENTATION_BACKLOG.md](/home/yoni/project-manager-app/docs/architecture/SEMSE_IMPLEMENTATION_BACKLOG.md)
+- [docs/architecture/SEMSE_API_SURFACE_V1.md](/home/yoni/project-manager-app/docs/architecture/SEMSE_API_SURFACE_V1.md)
+- [docs/security/SECURITY_BASELINE.md](/home/yoni/project-manager-app/docs/security/SECURITY_BASELINE.md)
+- [docs/runbooks/LOCAL_BOOTSTRAP.md](/home/yoni/project-manager-app/docs/runbooks/LOCAL_BOOTSTRAP.md)
+- [infra/docker/compose.semse-mvp.yml](/home/yoni/project-manager-app/infra/docker/compose.semse-mvp.yml)
+
 ## Badges
 
 Configurados para `Samuelcastella/project-manager-app`:
