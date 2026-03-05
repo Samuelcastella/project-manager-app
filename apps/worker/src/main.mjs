@@ -14,10 +14,13 @@ const config = {
   heartbeatIntervalMs: Number(process.env.SEMSE_HEARTBEAT_MS ?? 2500),
   runDurationMs: Number(process.env.SEMSE_RUN_SIM_MS ?? 4000),
   failRate: Number(process.env.SEMSE_FAIL_RATE ?? 0),
+  reclaimIntervalMs: Number(process.env.SEMSE_RECLAIM_MS ?? 10000),
+  staleAfterMs: Number(process.env.SEMSE_STALE_AFTER_MS ?? 10000),
   agentType: process.env.SEMSE_AGENT_TYPE ?? undefined
 };
 
 let shouldStop = false;
+let lastReclaimAt = 0;
 
 process.on("SIGINT", () => {
   shouldStop = true;
@@ -37,6 +40,8 @@ async function main() {
       pollIntervalMs: config.pollIntervalMs,
       heartbeatIntervalMs: config.heartbeatIntervalMs,
       runDurationMs: config.runDurationMs,
+      reclaimIntervalMs: config.reclaimIntervalMs,
+      staleAfterMs: config.staleAfterMs,
       agentType: config.agentType ?? "any"
     },
     "worker started"
@@ -44,6 +49,7 @@ async function main() {
 
   while (!shouldStop) {
     try {
+      await maybeReclaimStaleRuns();
       const run = await claimRun();
       if (!run) {
         await sleep(config.pollIntervalMs);
@@ -82,6 +88,26 @@ async function claimRun() {
   }
 
   return run;
+}
+
+async function maybeReclaimStaleRuns() {
+  const now = Date.now();
+  if (now - lastReclaimAt < config.reclaimIntervalMs) {
+    return;
+  }
+  lastReclaimAt = now;
+
+  const response = await postJson("/v1/agents/runs/reclaim-stale", {
+    staleAfterMs: config.staleAfterMs,
+    maxItems: 20
+  });
+
+  const reclaimedCount = response?.data?.reclaimedCount ?? 0;
+  if (reclaimedCount > 0) {
+    logger.warn({ reclaimedCount }, "reclaimed stale runs");
+  } else {
+    logger.debug("no stale runs to reclaim");
+  }
 }
 
 async function processRun(run) {

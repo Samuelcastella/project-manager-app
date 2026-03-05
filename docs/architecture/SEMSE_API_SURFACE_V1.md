@@ -54,6 +54,7 @@
 - `GET /v1/agents/catalog`
 - `POST /v1/agents/runs`
 - `POST /v1/agents/runs/claim`
+- `POST /v1/agents/runs/reclaim-stale`
 - `GET /v1/agents/runs`
 - `GET /v1/agents/runs/:runId`
 - `POST /v1/agents/runs/:runId/retry`

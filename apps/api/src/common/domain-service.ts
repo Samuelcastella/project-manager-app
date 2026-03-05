@@ -289,6 +289,42 @@ export function heartbeatAgentRun(input: {
   return run;
 }
 
+export function reclaimStaleAgentRuns(input: {
+  tenantId: string;
+  staleAfterMs: number;
+  maxItems?: number;
+}): AgentRunRecord[] {
+  const now = Date.now();
+  const maxItems = input.maxItems ?? 50;
+  const reclaimed: AgentRunRecord[] = [];
+
+  for (const run of domainStore.agentRuns) {
+    if (reclaimed.length >= maxItems) {
+      break;
+    }
+    if (run.tenantId !== input.tenantId || run.status !== "running") {
+      continue;
+    }
+
+    const lastSignal = run.heartbeatAt ?? run.startedAt ?? run.updatedAt ?? run.createdAt;
+    const ageMs = now - new Date(lastSignal).getTime();
+    if (Number.isNaN(ageMs) || ageMs < input.staleAfterMs) {
+      continue;
+    }
+
+    run.status = "queued";
+    run.workerId = undefined;
+    run.error = "reclaimed due to stale heartbeat";
+    run.startedAt = undefined;
+    run.heartbeatAt = undefined;
+    run.endedAt = undefined;
+    run.updatedAt = new Date().toISOString();
+    reclaimed.push(run);
+  }
+
+  return reclaimed;
+}
+
 export function listDisputes(input: { tenantId: string }): DisputeRecord[] {
   return domainStore.disputes.filter((entry) => entry.tenantId === input.tenantId);
 }

@@ -8,6 +8,7 @@ import {
   createAgentRun,
   failAgentRun,
   heartbeatAgentRun,
+  reclaimStaleAgentRuns,
   retryAgentRun,
   startAgentRun
 } from "../../common/domain-service.js";
@@ -29,6 +30,11 @@ const claimAgentRunSchema = z.object({
 
 const heartbeatSchema = z.object({
   workerId: z.string().min(1)
+});
+
+const reclaimSchema = z.object({
+  staleAfterMs: z.number().int().positive().default(10000),
+  maxItems: z.number().int().positive().max(500).optional()
 });
 
 @Controller("v1/agents")
@@ -131,6 +137,40 @@ export class AgentsController {
     }
 
     return ok(requestId, run);
+  }
+
+  @Post("runs/reclaim-stale")
+  @RequirePermissions("agents:run:worker")
+  reclaimStale(@Req() req: { headers?: Record<string, unknown> }, @Body() body: Record<string, unknown>) {
+    const parsed = reclaimSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+
+    const actor = resolveRequestContext(req);
+    const requestId = resolveRequestId(req.headers ?? {});
+    const reclaimed = reclaimStaleAgentRuns({
+      tenantId: actor.tenantId,
+      staleAfterMs: parsed.data.staleAfterMs,
+      maxItems: parsed.data.maxItems
+    });
+
+    if (reclaimed.length > 0) {
+      appendAudit({
+        id: `aud_${Date.now()}`,
+        actorUserId: actor.userId,
+        action: "agent.run.reclaim_stale",
+        entityType: "AgentRun",
+        entityId: reclaimed.map((entry) => entry.id).join(","),
+        requestId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return ok(requestId, {
+      reclaimedCount: reclaimed.length,
+      runs: reclaimed
+    });
   }
 
   @Post("runs/:runId/retry")
