@@ -75,8 +75,13 @@ export type AgentRunRecord = {
   status: "queued" | "running" | "completed" | "failed";
   triggerType: "manual" | "event" | "schedule";
   correlationId: string;
+  workerId?: string;
+  attempts: number;
   output?: Record<string, unknown>;
   error?: string;
+  startedAt?: string;
+  heartbeatAt?: string;
+  endedAt?: string;
   createdAt: string;
   updatedAt: string;
 };

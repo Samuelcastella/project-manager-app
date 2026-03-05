@@ -1,6 +1,7 @@
 export const rolePermissions: Record<string, string[]> = {
   CLIENT: ["jobs:read", "jobs:create", "bids:read", "milestones:approve", "disputes:create"],
   PRO: ["jobs:read", "bids:create", "milestones:submit", "evidence:write"],
+  WORKER: ["agents:run:worker"],
   OPS_ADMIN: [
     "jobs:read",
     "jobs:create",
@@ -18,7 +19,8 @@ export const rolePermissions: Record<string, string[]> = {
     "ops:risk:read",
     "agents:run:create",
     "agents:run:retry",
-    "agents:run:manage"
+    "agents:run:manage",
+    "agents:run:worker"
   ]
 };
 

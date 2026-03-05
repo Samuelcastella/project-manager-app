@@ -3,9 +3,11 @@ import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
 import {
+  claimNextAgentRun,
   completeAgentRun,
   createAgentRun,
   failAgentRun,
+  heartbeatAgentRun,
   retryAgentRun,
   startAgentRun
 } from "../../common/domain-service.js";
@@ -18,6 +20,15 @@ const createAgentRunSchema = z.object({
   agentType: z.enum(["pricing", "job-planner", "evidence-coach", "risk", "dispute"]),
   triggerType: z.enum(["manual", "event", "schedule"]).default("manual"),
   correlationId: z.string().min(1)
+});
+
+const claimAgentRunSchema = z.object({
+  workerId: z.string().min(1),
+  agentType: z.enum(["pricing", "job-planner", "evidence-coach", "risk", "dispute"]).optional()
+});
+
+const heartbeatSchema = z.object({
+  workerId: z.string().min(1)
 });
 
 @Controller("v1/agents")
@@ -91,6 +102,37 @@ export class AgentsController {
     return ok(requestId, run);
   }
 
+  @Post("runs/claim")
+  @RequirePermissions("agents:run:worker")
+  claim(@Req() req: { headers?: Record<string, unknown> }, @Body() body: Record<string, unknown>) {
+    const parsed = claimAgentRunSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+
+    const actor = resolveRequestContext(req);
+    const requestId = resolveRequestId(req.headers ?? {});
+    const run = claimNextAgentRun({
+      tenantId: actor.tenantId,
+      workerId: parsed.data.workerId,
+      agentType: parsed.data.agentType
+    });
+
+    if (run) {
+      appendAudit({
+        id: `aud_${Date.now()}`,
+        actorUserId: actor.userId,
+        action: "agent.run.claim",
+        entityType: "AgentRun",
+        entityId: run.id,
+        requestId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return ok(requestId, run);
+  }
+
   @Post("runs/:runId/retry")
   @RequirePermissions("agents:run:retry")
   retry(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
@@ -121,6 +163,36 @@ export class AgentsController {
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
       action: "agent.run.start",
+      entityType: "AgentRun",
+      entityId: run.id,
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+    return ok(requestId, run);
+  }
+
+  @Post("runs/:runId/heartbeat")
+  @RequirePermissions("agents:run:worker")
+  heartbeat(
+    @Req() req: { headers?: Record<string, unknown> },
+    @Param("runId") runId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    const parsed = heartbeatSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const actor = resolveRequestContext(req);
+    const run = heartbeatAgentRun({
+      tenantId: actor.tenantId,
+      runId,
+      workerId: parsed.data.workerId
+    });
+    const requestId = resolveRequestId(req.headers ?? {});
+    appendAudit({
+      id: `aud_${Date.now()}`,
+      actorUserId: actor.userId,
+      action: "agent.run.heartbeat",
       entityType: "AgentRun",
       entityId: run.id,
       requestId,

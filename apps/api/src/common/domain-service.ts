@@ -159,6 +159,7 @@ function createAgentRunRecord(input: {
     triggerType: input.triggerType,
     correlationId: input.correlationId,
     status: "queued",
+    attempts: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -178,7 +179,11 @@ export function retryAgentRun(input: { tenantId: string; runId: string }): Agent
   }
 
   run.status = "queued";
+  run.workerId = undefined;
   run.error = undefined;
+  run.startedAt = undefined;
+  run.endedAt = undefined;
+  run.heartbeatAt = undefined;
   run.updatedAt = new Date().toISOString();
   return run;
 }
@@ -192,6 +197,9 @@ export function startAgentRun(input: { tenantId: string; runId: string }): Agent
     throw new ConflictException(`cannot start run in status '${run.status}'`);
   }
   run.status = "running";
+  run.attempts += 1;
+  run.startedAt = new Date().toISOString();
+  run.heartbeatAt = run.startedAt;
   run.updatedAt = new Date().toISOString();
   return run;
 }
@@ -211,6 +219,7 @@ export function completeAgentRun(input: {
   run.status = "completed";
   run.output = input.output;
   run.error = undefined;
+  run.endedAt = new Date().toISOString();
   run.updatedAt = new Date().toISOString();
   return run;
 }
@@ -229,7 +238,54 @@ export function failAgentRun(input: {
   }
   run.status = "failed";
   run.error = input.error;
+  run.endedAt = new Date().toISOString();
   run.updatedAt = new Date().toISOString();
+  return run;
+}
+
+export function claimNextAgentRun(input: {
+  tenantId: string;
+  workerId: string;
+  agentType?: AgentRunRecord["agentType"];
+}): AgentRunRecord | null {
+  const queued = domainStore.agentRuns
+    .filter(
+      (entry) =>
+        entry.tenantId === input.tenantId &&
+        entry.status === "queued" &&
+        (!input.agentType || entry.agentType === input.agentType)
+    )
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  const next = queued[0];
+  if (!next) {
+    return null;
+  }
+
+  next.status = "running";
+  next.workerId = input.workerId;
+  next.attempts += 1;
+  next.startedAt = new Date().toISOString();
+  next.heartbeatAt = next.startedAt;
+  next.updatedAt = new Date().toISOString();
+  return next;
+}
+
+export function heartbeatAgentRun(input: {
+  tenantId: string;
+  runId: string;
+  workerId: string;
+}): AgentRunRecord {
+  const run = findAgentRunOrThrow({ tenantId: input.tenantId, runId: input.runId });
+  if (run.status !== "running") {
+    throw new ConflictException(`cannot heartbeat run in status '${run.status}'`);
+  }
+  if (run.workerId && run.workerId !== input.workerId) {
+    throw new ConflictException("run is owned by another worker");
+  }
+  run.workerId = input.workerId;
+  run.heartbeatAt = new Date().toISOString();
+  run.updatedAt = run.heartbeatAt;
   return run;
 }
 
