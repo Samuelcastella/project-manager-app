@@ -6,8 +6,8 @@
   - Total presupuesto por estado. ✅
   - Presupuesto por responsable. ✅
 - Vista calendario:
-  - Proyectos agrupados por día/semana.
-  - Indicadores de vencimiento.
+  - Proyectos agrupados por día/semana. ✅
+  - Indicadores de vencimiento. ✅
 - Productividad:
   - Presets de filtros. ✅
   - Atajos de teclado (`n` nuevo proyecto, `/` buscar). ✅

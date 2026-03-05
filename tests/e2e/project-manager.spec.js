@@ -79,3 +79,21 @@ test("métricas financieras y ranking por responsable", async ({ page }) => {
   await expect(page.locator("#metric-budget-progress")).toContainText("2000");
   await expect(page.locator("#owner-budget-list .owner-budget-item").first()).toContainText("Bruno");
 });
+
+test("vista calendario muestra proyectos por fecha límite", async ({ page }) => {
+  const dueDate = await page.evaluate(() => {
+    const now = new Date();
+    const safeDay = Math.min(15, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
+    const d = new Date(now.getFullYear(), now.getMonth(), safeDay);
+    return d.toISOString().slice(0, 10);
+  });
+
+  await page.locator("#name").fill("Proyecto Calendario");
+  await page.locator("#owner").fill("Marta");
+  await page.locator("#dueDate").fill(dueDate);
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+
+  await page.locator("#view-calendar").click();
+  await expect(page.locator("#calendar-view")).toBeVisible();
+  await expect(page.locator("#calendar-grid .calendar-chip").first()).toContainText("Proyecto Calendario");
+});

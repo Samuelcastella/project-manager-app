@@ -38,6 +38,11 @@ const cancelEditBtn = document.getElementById("cancel-edit");
 
 const listView = document.getElementById("list-view");
 const kanbanView = document.getElementById("kanban-view");
+const calendarView = document.getElementById("calendar-view");
+const calendarGrid = document.getElementById("calendar-grid");
+const calendarLabel = document.getElementById("calendar-label");
+const calendarPrevBtn = document.getElementById("calendar-prev");
+const calendarNextBtn = document.getElementById("calendar-next");
 const kanbanColumns = {
   pendiente: document.getElementById("kanban-pendiente"),
   "en-progreso": document.getElementById("kanban-en-progreso"),
@@ -61,6 +66,7 @@ const importFileInput = document.getElementById("import-file");
 
 const viewListBtn = document.getElementById("view-list");
 const viewKanbanBtn = document.getElementById("view-kanban");
+const viewCalendarBtn = document.getElementById("view-calendar");
 
 const metrics = {
   total: document.getElementById("metric-total"),
@@ -78,6 +84,10 @@ const state = {
   projects: loadProjects(),
   currentView: "list",
   filterPresets: loadFilterPresets(),
+  calendarCursor: (() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  })(),
 };
 
 function setStatusMessage(message, type = "info") {
@@ -158,6 +168,33 @@ function formatDate(dateString) {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function getMonthLabel(date) {
+  return new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildMonthMatrix(cursorDate) {
+  const year = cursorDate.getFullYear();
+  const month = cursorDate.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekDay = (firstDayOfMonth.getDay() + 6) % 7;
+
+  const cells = [];
+  for (let i = 0; i < startWeekDay; i += 1) {
+    cells.push(null);
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push(new Date(year, month, day));
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return cells;
 }
 
 function formatMoney(value) {
@@ -345,6 +382,66 @@ function renderKanban(items) {
   });
 }
 
+function renderCalendar(items) {
+  calendarGrid.innerHTML = "";
+  const weekdayLabels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  weekdayLabels.forEach((label) => {
+    const head = document.createElement("div");
+    head.className = "calendar-weekday";
+    head.textContent = label;
+    calendarGrid.appendChild(head);
+  });
+
+  const cells = buildMonthMatrix(state.calendarCursor);
+  const byDate = new Map();
+  items.forEach((project) => {
+    if (!byDate.has(project.dueDate)) byDate.set(project.dueDate, []);
+    byDate.get(project.dueDate).push(project);
+  });
+
+  cells.forEach((dateCell) => {
+    const box = document.createElement("div");
+    box.className = "calendar-cell";
+
+    if (!dateCell) {
+      box.classList.add("muted");
+      calendarGrid.appendChild(box);
+      return;
+    }
+
+    const iso = dateCell.toISOString().slice(0, 10);
+    const day = document.createElement("strong");
+    day.textContent = String(dateCell.getDate());
+    box.appendChild(day);
+
+    const itemsInDay = byDate.get(iso) || [];
+    if (!itemsInDay.length) {
+      const hint = document.createElement("small");
+      hint.className = "calendar-empty";
+      hint.textContent = "Sin entregas";
+      box.appendChild(hint);
+    } else {
+      itemsInDay.slice(0, 3).forEach((project) => {
+        const chip = document.createElement("p");
+        chip.className = "calendar-chip";
+        chip.textContent = project.name;
+        chip.title = `${project.name} (${project.owner})`;
+        box.appendChild(chip);
+      });
+      if (itemsInDay.length > 3) {
+        const extra = document.createElement("small");
+        extra.className = "calendar-extra";
+        extra.textContent = `+${itemsInDay.length - 3} más`;
+        box.appendChild(extra);
+      }
+    }
+
+    calendarGrid.appendChild(box);
+  });
+
+  calendarLabel.textContent = getMonthLabel(state.calendarCursor);
+}
+
 function renderMetrics() {
   const total = state.projects.length;
   const inProgress = state.projects.filter((project) => project.status === "en-progreso").length;
@@ -408,6 +505,7 @@ function render() {
   const visibleProjects = getFilteredProjects();
   renderList(visibleProjects);
   renderKanban(visibleProjects);
+  renderCalendar(visibleProjects);
   renderMetrics();
 
   projectCount.textContent = `${visibleProjects.length} proyecto${visibleProjects.length === 1 ? "" : "s"} visibles`;
@@ -495,15 +593,20 @@ function performCardAction(eventTarget) {
 function setView(view) {
   state.currentView = view;
   const listActive = view === "list";
+  const kanbanActive = view === "kanban";
+  const calendarActive = view === "calendar";
 
   listView.classList.toggle("hidden", !listActive);
-  kanbanView.classList.toggle("hidden", listActive);
+  kanbanView.classList.toggle("hidden", !kanbanActive);
+  calendarView.classList.toggle("hidden", !calendarActive);
 
   viewListBtn.classList.toggle("active", listActive);
-  viewKanbanBtn.classList.toggle("active", !listActive);
+  viewKanbanBtn.classList.toggle("active", kanbanActive);
+  viewCalendarBtn.classList.toggle("active", calendarActive);
 
   viewListBtn.setAttribute("aria-selected", String(listActive));
-  viewKanbanBtn.setAttribute("aria-selected", String(!listActive));
+  viewKanbanBtn.setAttribute("aria-selected", String(kanbanActive));
+  viewCalendarBtn.setAttribute("aria-selected", String(calendarActive));
 }
 
 function debounce(fn, delayMs = 200) {
@@ -770,6 +873,17 @@ function bindEvents() {
 
   viewListBtn.addEventListener("click", () => setView("list"));
   viewKanbanBtn.addEventListener("click", () => setView("kanban"));
+  viewCalendarBtn.addEventListener("click", () => setView("calendar"));
+
+  calendarPrevBtn.addEventListener("click", () => {
+    state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() - 1, 1);
+    render();
+  });
+
+  calendarNextBtn.addEventListener("click", () => {
+    state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() + 1, 1);
+    render();
+  });
 
   exportBtn.addEventListener("click", exportProjects);
 

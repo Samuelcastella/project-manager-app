@@ -300,6 +300,73 @@ kbd {
   gap: 0.65rem;
 }
 
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.calendar-toolbar strong {
+  text-transform: capitalize;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 700;
+  padding-bottom: 0.2rem;
+}
+
+.calendar-cell {
+  min-height: 92px;
+  border: 1px solid #d2dbc8;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.42rem;
+  display: grid;
+  gap: 0.2rem;
+  align-content: start;
+}
+
+.calendar-cell.muted {
+  background: #f8fbf3;
+}
+
+.calendar-cell > strong {
+  font-size: 0.82rem;
+}
+
+.calendar-empty {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.calendar-chip {
+  margin: 0;
+  border-radius: 7px;
+  padding: 0.12rem 0.35rem;
+  background: #e3f0ea;
+  color: #1e5f4a;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-extra {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 .project-card {
   border: 1px solid #d2dbc8;
   border-left: 5px solid #8ea18f;
@@ -455,6 +522,10 @@ kbd {
   #kanban-view {
     grid-template-columns: 1fr;
   }
+
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -480,6 +551,14 @@ kbd {
   .shortcut-hint {
     margin-left: 0;
     width: 100%;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .calendar-weekday {
+    display: none;
   }
 }
 

@@ -170,6 +170,16 @@
             >
               Kanban
             </button>
+            <button
+              id="view-calendar"
+              class="icon-btn"
+              data-view="calendar"
+              type="button"
+              role="tab"
+              aria-selected="false"
+            >
+              Calendario
+            </button>
           </div>
         </div>
 
@@ -247,6 +257,15 @@
             <h3>Completado</h3>
             <div class="kanban-items" id="kanban-completado"></div>
           </div>
+        </div>
+
+        <div id="calendar-view" class="view-container hidden" role="tabpanel">
+          <div class="calendar-toolbar">
+            <button id="calendar-prev" class="icon-btn" type="button">Mes anterior</button>
+            <strong id="calendar-label">Calendario</strong>
+            <button id="calendar-next" class="icon-btn" type="button">Mes siguiente</button>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
         </div>
       </section>
     </main>
