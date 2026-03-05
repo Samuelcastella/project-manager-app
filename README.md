@@ -101,6 +101,22 @@ Se agregó pipeline en [`.github/workflows/ci.yml`](/home/yoni/project-manager-a
   - Dependencias `npm`.
   - Versiones de `GitHub Actions`.
 
+## Releases
+
+- Se agregó workflow de release en [`.github/workflows/release.yml`](/home/yoni/project-manager-app/.github/workflows/release.yml).
+- Al hacer push de un tag `v*.*.*`, el pipeline:
+  - Ejecuta la suite completa (`npm run test:ci`).
+  - Crea un GitHub Release automático con notas generadas.
+
+Comandos para versionar:
+
+```bash
+npm run release:patch   # v1.0.0 -> v1.0.1
+npm run release:minor   # v1.0.0 -> v1.1.0
+npm run release:major   # v1.0.0 -> v2.0.0
+git push --follow-tags
+```
+
 ## Publicar en GitHub
 
 Si aún no publicaste el repo remoto:
