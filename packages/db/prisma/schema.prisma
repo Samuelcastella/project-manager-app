@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  AWARDED
+  CANCELLED
+}
+
+enum BidStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum ProjectStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum EvidenceKind {
+  PHOTO
+  VIDEO
+  DOCUMENT
+}
+
+enum PaymentTxnType {
+  DEPOSIT
+  RELEASE
+  HOLDBACK
+  FEE
+  REFUND
+}
+
+enum PaymentTxnStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REVERSED
+}
+
+enum DisputeStatus {
+  OPEN
+  ASSIGNED
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Tenant {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  name       String
+  status     String      @default("active")
+  orgs       Org[]
+  jobs       Job[]
+  projects   Project[]
+  disputes   Dispute[]
+  auditLogs  AuditLog[]
+  agentRuns  AgentRun[]
+  riskScores RiskScore[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Org {
+  id          String       @id @default(cuid())
+  tenantId    String
+  type        String
+  name        String
+  users       Membership[]
+  jobs        Job[]
+  bids        Bid[]
+  projects    Project[]
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([tenantId, type])
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  phone         String?
+  passwordHash  String?
+  status        String        @default("active")
+  memberships   Membership[]
+  messages      Message[]
+  disputes      Dispute[]     @relation("DisputeRaisedBy")
+  auditEvents   AuditLog[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Role {
+  id           String           @id @default(cuid())
+  key          String           @unique
+  name         String
+  memberships  Membership[]
+  permissions  RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Membership {
+  userId      String
+  orgId       String
+  roleId      String
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org         Org   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role        Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@id([userId, orgId, roleId])
+}
+
+model Job {
+  id           String      @id @default(cuid())
+  tenantId     String
+  clientOrgId  String
+  title        String
+  scope        String
+  status       JobStatus   @default(PUBLISHED)
+  budgetMin    Decimal?    @db.Decimal(12, 2)
+  budgetMax    Decimal?    @db.Decimal(12, 2)
+  location     String?
+  bids         Bid[]
+  messages     MessageThread[]
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientOrg    Org         @relation(fields: [clientOrgId], references: [id], onDelete: Restrict)
+  project      Project?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tenantId, status])
+}
+
+model Bid {
+  id           String     @id @default(cuid())
+  jobId        String
+  proOrgId     String
+  amount       Decimal    @db.Decimal(12, 2)
+  etaDays      Int
+  status       BidStatus  @default(SUBMITTED)
+  note         String?
+  job          Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  proOrg       Org        @relation(fields: [proOrgId], references: [id], onDelete: Restrict)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([jobId, status])
+}
+
+model Project {
+  id              String          @id @default(cuid())
+  tenantId        String
+  jobId           String          @unique
+  assignedProOrgId String
+  status          ProjectStatus   @default(OPEN)
+  startAt         DateTime?
+  dueAt           DateTime?
+  milestones      Milestone[]
+  evidence        Evidence[]
+  disputes        Dispute[]
+  escrow          PaymentEscrow?
+  messageThreads  MessageThread[]
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job             Job             @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  assignedProOrg  Org             @relation(fields: [assignedProOrgId], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([tenantId, status])
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  projectId     String
+  title         String
+  amount        Decimal         @db.Decimal(12, 2)
+  sequence      Int
+  status        MilestoneStatus @default(DRAFT)
+  approvedById  String?
+  approvedAt    DateTime?
+  evidence      Evidence[]
+  paymentTxns   PaymentTxn[]
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([projectId, sequence])
+}
+
+model PaymentEscrow {
+  id           String        @id @default(cuid())
+  projectId    String        @unique
+  providerRef  String        @unique
+  currency     String        @default("USD")
+  totalAmount  Decimal       @db.Decimal(12, 2)
+  holdbackPct  Decimal?      @db.Decimal(5, 2)
+  status       String        @default("active")
+  transactions PaymentTxn[]
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model PaymentTxn {
+  id            String           @id @default(cuid())
+  escrowId      String
+  milestoneId   String?
+  type          PaymentTxnType
+  amount        Decimal          @db.Decimal(12, 2)
+  providerRef   String           @unique
+  status        PaymentTxnStatus @default(PENDING)
+  escrow        PaymentEscrow    @relation(fields: [escrowId], references: [id], onDelete: Cascade)
+  milestone     Milestone?       @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+}
+
+model Evidence {
+  id           String       @id @default(cuid())
+  projectId    String
+  milestoneId  String?
+  uploadedById String
+  kind         EvidenceKind
+  bucketKey    String
+  checksum     String?
+  metadataJson Json?
+  capturedAt   DateTime?
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone    Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime     @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+model MessageThread {
+  id          String      @id @default(cuid())
+  jobId       String?
+  projectId   String?
+  messages    Message[]
+  job         Job?        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+}
+
+model Message {
+  id          String        @id @default(cuid())
+  threadId    String
+  senderUserId String
+  body        String
+  attachments Json?
+  thread      MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      User          @relation(fields: [senderUserId], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now())
+}
+
+model Dispute {
+  id            String        @id @default(cuid())
+  tenantId      String
+  projectId     String
+  milestoneId   String?
+  raisedById    String
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  resolvedById  String?
+  resolvedAt    DateTime?
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone     Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  raisedBy      User          @relation("DisputeRaisedBy", fields: [raisedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  tenantId    String
+  actorUserId String?
+  entityType  String
+  entityId    String
+  action      String
+  beforeJson  Json?
+  afterJson   Json?
+  ip          String?
+  userAgent   String?
+  occurredAt  DateTime  @default(now())
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, occurredAt])
+  @@index([entityType, entityId])
+}
+
+model AgentRun {
+  id            String         @id @default(cuid())
+  tenantId      String
+  agentType     String
+  triggerType   String
+  inputJson     Json
+  outputJson    Json?
+  status        AgentRunStatus @default(QUEUED)
+  correlationId String
+  startedAt     DateTime?
+  endedAt       DateTime?
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+
+  @@index([tenantId, status])
+  @@index([correlationId])
+}
+
+model RiskScore {
+  id           String   @id @default(cuid())
+  tenantId     String
+  subjectType  String
+  subjectId    String
+  score        Decimal  @db.Decimal(5, 4)
+  factorsJson  Json
+  modelVersion String
+  computedAt   DateTime @default(now())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, subjectType, subjectId])
+  @@index([computedAt])
+}

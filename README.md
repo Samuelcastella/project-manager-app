@@ -14,6 +14,26 @@ Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Es
 - [docs/runbooks/LOCAL_BOOTSTRAP.md](/home/yoni/project-manager-app/docs/runbooks/LOCAL_BOOTSTRAP.md)
 - [infra/docker/compose.semse-mvp.yml](/home/yoni/project-manager-app/infra/docker/compose.semse-mvp.yml)
 
+### Avance técnico Fase 0 ya agregado
+
+- Estructura monorepo preparada:
+  - `apps/web`, `apps/api`, `apps/worker`
+  - `packages/ui`, `packages/shared`, `packages/schemas`, `packages/db`, `packages/auth`, `packages/agents`
+- API base en NestJS (scaffold):
+  - [`apps/api/src/main.ts`](/home/yoni/project-manager-app/apps/api/src/main.ts)
+  - [`apps/api/src/app.module.ts`](/home/yoni/project-manager-app/apps/api/src/app.module.ts)
+  - Controladores `v1`: health, auth, jobs, bids, milestones, evidence, disputes, ops, agents.
+- Modelo de datos base Prisma:
+  - [`packages/db/prisma/schema.prisma`](/home/yoni/project-manager-app/packages/db/prisma/schema.prisma)
+- Contratos Zod iniciales:
+  - [`packages/schemas/src/index.ts`](/home/yoni/project-manager-app/packages/schemas/src/index.ts)
+
+### Boot de infraestructura local (SEMSE MVP)
+
+```bash
+docker compose -f infra/docker/compose.semse-mvp.yml up -d
+```
+
 ## Badges
 
 Configurados para `Samuelcastella/project-manager-app`:
