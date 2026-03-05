@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
-import { domainStore, type JobRecord } from "../../common/domain-store.js";
+import { createJob, findJobOrThrow } from "../../common/domain-service.js";
+import { domainStore } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
@@ -38,11 +39,7 @@ export class JobsController {
   @RequirePermissions("jobs:read")
   detail(@Req() req: { headers?: Record<string, unknown> }, @Param("jobId") jobId: string) {
     const actor = resolveRequestContext(req);
-    const job = domainStore.jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
-    if (!job) {
-      throw new NotFoundException(`Job '${jobId}' not found`);
-    }
-
+    const job = findJobOrThrow({ tenantId: actor.tenantId, jobId });
     return ok(resolveRequestId(req.headers ?? {}), job);
   }
 
@@ -56,17 +53,14 @@ export class JobsController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const job: JobRecord = {
-      id: `job_${Date.now()}`,
+    const job = createJob({
       tenantId: actor.tenantId,
       title: parsed.data.title,
       scope: parsed.data.scope,
-      status: "published",
       budgetMin: parsed.data.budgetMin,
       budgetMax: parsed.data.budgetMax
-    };
+    });
 
-    domainStore.jobs.push(job);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,

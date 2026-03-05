@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
-import { domainStore, type BidRecord } from "../../common/domain-store.js";
+import { acceptBid, createBid } from "../../common/domain-service.js";
+import { domainStore } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
@@ -32,26 +33,15 @@ export class BidsController {
     }
 
     const actor = resolveRequestContext(req);
-    const job = domainStore.jobs.find((entry) => entry.id === jobId && entry.tenantId === actor.tenantId);
-    if (!job) {
-      throw new NotFoundException(`Job '${jobId}' not found`);
-    }
-    if (job.status !== "published") {
-      throw new BadRequestException("bids can only be created for published jobs");
-    }
-
     const requestId = resolveRequestId(req.headers ?? {});
-    const bid: BidRecord = {
-      id: `bid_${Date.now()}`,
-      jobId,
+    const bid = createBid({
       tenantId: actor.tenantId,
+      jobId,
       proOrgId: parsed.data.proOrgId,
       amount: parsed.data.amount,
-      etaDays: parsed.data.etaDays,
-      status: "submitted"
-    };
+      etaDays: parsed.data.etaDays
+    });
 
-    domainStore.bids.push(bid);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -69,27 +59,8 @@ export class BidsController {
   @RequirePermissions("bids:accept")
   accept(@Req() req: { headers?: Record<string, unknown> }, @Param("bidId") bidId: string) {
     const actor = resolveRequestContext(req);
-    const bid = domainStore.bids.find((entry) => entry.id === bidId && entry.tenantId === actor.tenantId);
-    if (!bid) {
-      throw new NotFoundException(`Bid '${bidId}' not found`);
-    }
+    const bid = acceptBid({ tenantId: actor.tenantId, bidId });
 
-    const job = domainStore.jobs.find((entry) => entry.id === bid.jobId && entry.tenantId === actor.tenantId);
-    if (!job) {
-      throw new NotFoundException(`Job '${bid.jobId}' not found`);
-    }
-
-    if (job.status !== "published") {
-      throw new BadRequestException("job is not eligible for bid acceptance");
-    }
-
-    for (const candidate of domainStore.bids) {
-      if (candidate.jobId === bid.jobId && candidate.tenantId === actor.tenantId && candidate.id !== bid.id) {
-        candidate.status = "rejected";
-      }
-    }
-    bid.status = "accepted";
-    job.status = "awarded";
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,

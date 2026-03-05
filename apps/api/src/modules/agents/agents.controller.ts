@@ -2,7 +2,8 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from "zod";
 import { ok } from "../../common/api-response.js";
 import { appendAudit } from "../../common/audit-log.store.js";
-import { domainStore, type AgentRunRecord } from "../../common/domain-store.js";
+import { createAgentRun, retryAgentRun } from "../../common/domain-service.js";
+import { domainStore } from "../../common/domain-store.js";
 import { RequirePermissions } from "../../common/permissions.decorator.js";
 import { resolveRequestContext } from "../../common/request-context.js";
 import { resolveRequestId } from "../../common/request-id.js";
@@ -59,17 +60,18 @@ export class AgentsController {
 
     const actor = resolveRequestContext(req);
     const requestId = resolveRequestId(req.headers ?? {});
-    const run: AgentRunRecord = {
-      id: `run_${Date.now()}`,
+    const idempotencyHeader = req.headers?.["x-idempotency-key"];
+    const idempotencyKey = typeof idempotencyHeader === "string" ? idempotencyHeader : undefined;
+
+    const run = createAgentRun({
       tenantId: actor.tenantId,
+      userId: actor.userId,
       agentType: parsed.data.agentType,
       triggerType: parsed.data.triggerType,
       correlationId: parsed.data.correlationId,
-      status: "queued",
-      createdAt: new Date().toISOString()
-    };
+      idempotencyKey
+    });
 
-    domainStore.agentRuns.unshift(run);
     appendAudit({
       id: `aud_${Date.now()}`,
       actorUserId: actor.userId,
@@ -87,16 +89,8 @@ export class AgentsController {
   @RequirePermissions("agents:run:retry")
   retry(@Req() req: { headers?: Record<string, unknown> }, @Param("runId") runId: string) {
     const actor = resolveRequestContext(req);
-    const run = domainStore.agentRuns.find((entry) => entry.id === runId && entry.tenantId === actor.tenantId);
-    if (!run) {
-      throw new NotFoundException(`Agent run '${runId}' not found`);
-    }
+    const run = retryAgentRun({ tenantId: actor.tenantId, runId });
 
-    if (run.status === "running") {
-      throw new BadRequestException("running run cannot be retried");
-    }
-
-    run.status = "queued";
     const requestId = resolveRequestId(req.headers ?? {});
     appendAudit({
       id: `aud_${Date.now()}`,

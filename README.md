@@ -41,6 +41,7 @@ Mientras se integra auth real, el scaffold de `apps/api` resuelve actor/tenant d
 - `x-tenant-id`
 - `x-org-id`
 - `x-roles` (CSV, por ejemplo: `OPS_ADMIN` o `CLIENT,PRO`)
+- `x-idempotency-key` (opcional, para deduplicar `POST /v1/agents/runs`)
 
 ## Badges
 
