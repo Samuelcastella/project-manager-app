@@ -14,6 +14,7 @@ import {
 
 const STORAGE_KEY = "project_manager_projects_v2";
 const FILTER_PRESETS_KEY = "project_manager_filter_presets_v1";
+const VIEW_FILTERS_KEY = "project_manager_view_filters_v1";
 const LEGACY_STORAGE_KEYS = ["project_manager_projects", "project_manager_projects_v1"];
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -84,6 +85,7 @@ const state = {
   projects: loadProjects(),
   currentView: "list",
   filterPresets: loadFilterPresets(),
+  viewFilters: loadViewFilters(),
   calendarCursor: (() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -137,6 +139,47 @@ function loadFilterPresets() {
 
 function saveFilterPresets() {
   return writeStorage(FILTER_PRESETS_KEY, JSON.stringify(state.filterPresets));
+}
+
+function getDefaultFilters() {
+  return {
+    search: "",
+    status: "todos",
+    priority: "todas",
+    owner: "",
+    sortBy: "dueDate",
+  };
+}
+
+function loadViewFilters() {
+  const raw = readStorage(VIEW_FILTERS_KEY);
+  const defaults = {
+    list: getDefaultFilters(),
+    kanban: getDefaultFilters(),
+    calendar: getDefaultFilters(),
+  };
+
+  if (!raw) return defaults;
+  const parsed = safeJSONParse(raw, null);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
+
+  ["list", "kanban", "calendar"].forEach((view) => {
+    const current = parsed[view];
+    if (!current || typeof current !== "object" || Array.isArray(current)) return;
+    defaults[view] = {
+      search: String(current.search || ""),
+      status: String(current.status || "todos"),
+      priority: String(current.priority || "todas"),
+      owner: String(current.owner || ""),
+      sortBy: String(current.sortBy || "dueDate"),
+    };
+  });
+
+  return defaults;
+}
+
+function saveViewFilters() {
+  return writeStorage(VIEW_FILTERS_KEY, JSON.stringify(state.viewFilters));
 }
 
 function loadProjects() {
@@ -241,6 +284,24 @@ function getCurrentFilters() {
   };
 }
 
+function applyFilterControls(filters) {
+  searchInput.value = String(filters.search || "");
+  filterStatus.value = String(filters.status || "todos");
+  filterPriority.value = String(filters.priority || "todas");
+  filterOwner.value = String(filters.owner || "");
+  sortBy.value = String(filters.sortBy || "dueDate");
+}
+
+function persistCurrentViewFilters() {
+  state.viewFilters[state.currentView] = getCurrentFilters();
+  saveViewFilters();
+}
+
+function applyViewFilters(view) {
+  const nextFilters = state.viewFilters[view] || getDefaultFilters();
+  applyFilterControls(nextFilters);
+}
+
 function clearPresetSelection() {
   if (filterPreset.value) {
     filterPreset.value = "";
@@ -248,11 +309,8 @@ function clearPresetSelection() {
 }
 
 function applyFiltersFromPreset(preset) {
-  searchInput.value = String(preset.search || "");
-  filterStatus.value = String(preset.status || "todos");
-  filterPriority.value = String(preset.priority || "todas");
-  filterOwner.value = String(preset.owner || "");
-  sortBy.value = String(preset.sortBy || "dueDate");
+  applyFilterControls(preset);
+  persistCurrentViewFilters();
   render();
 }
 
@@ -263,6 +321,8 @@ function renderPresetOptions() {
   Object.keys(state.filterPresets)
     .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }))
     .forEach((name) => {
+      const preset = state.filterPresets[name];
+      if (preset?.view && preset.view !== state.currentView) return;
       const option = document.createElement("option");
       option.value = name;
       option.textContent = name;
@@ -609,7 +669,11 @@ function performCardAction(eventTarget) {
 }
 
 function setView(view) {
+  persistCurrentViewFilters();
   state.currentView = view;
+  applyViewFilters(view);
+  renderPresetOptions();
+  clearPresetSelection();
   const listActive = view === "list";
   const kanbanActive = view === "kanban";
   const calendarActive = view === "calendar";
@@ -636,12 +700,9 @@ function debounce(fn, delayMs = 200) {
 }
 
 function resetFilters() {
-  searchInput.value = "";
-  filterStatus.value = "todos";
-  filterPriority.value = "todas";
-  filterOwner.value = "";
-  sortBy.value = "dueDate";
+  applyFilterControls(getDefaultFilters());
   filterPreset.value = "";
+  persistCurrentViewFilters();
   render();
 }
 
@@ -652,7 +713,10 @@ function saveCurrentPreset() {
   const cleanName = name.trim();
   if (!cleanName) return;
 
-  state.filterPresets[cleanName] = getCurrentFilters();
+  state.filterPresets[cleanName] = {
+    ...getCurrentFilters(),
+    view: state.currentView,
+  };
   if (saveFilterPresets()) {
     renderPresetOptions();
     filterPreset.value = cleanName;
@@ -857,6 +921,7 @@ function bindEvents() {
   [searchInput, filterOwner].forEach((control) => {
     control.addEventListener("input", () => {
       clearPresetSelection();
+      persistCurrentViewFilters();
       debouncedRender();
     });
   });
@@ -864,6 +929,7 @@ function bindEvents() {
   [filterStatus, filterPriority, sortBy].forEach((control) => {
     control.addEventListener("change", () => {
       clearPresetSelection();
+      persistCurrentViewFilters();
       render();
     });
   });
@@ -871,6 +937,7 @@ function bindEvents() {
   filterPreset.addEventListener("change", () => {
     const name = filterPreset.value;
     if (!name) {
+      persistCurrentViewFilters();
       setStatusMessage("Preset desactivado.", "info");
       return;
     }

@@ -19,7 +19,8 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Métricas financieras: presupuesto total y por estado.
 - Ranking de presupuesto por responsable.
 - Filtros avanzados (texto, estado, prioridad, responsable) y ordenamiento.
-- Presets de filtros guardados en `localStorage`.
+- Recordar filtros automáticamente por vista.
+- Presets de filtros guardados en `localStorage` (asociados por vista).
 - Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
@@ -82,6 +83,7 @@ Escenarios actuales:
 - Calcular métricas financieras y ranking por responsable.
 - Mostrar proyectos en vista calendario por fecha límite.
 - Resaltar celdas de calendario próximas a vencer.
+- Recordar filtros distintos entre lista y kanban.
 
 Si es la primera vez:
 

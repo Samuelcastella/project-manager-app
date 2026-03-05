@@ -17,6 +17,8 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Ranking de presupuesto por responsable (top 5).
 - Vista calendario mensual con proyectos agrupados por fecha límite.
 - Indicadores visuales en calendario para vencidos y próximos a vencer.
+- Filtros recordados automáticamente por vista (lista, kanban, calendario).
+- Presets asociados a la vista activa.
 
 ### Planned
 - Dashboard financiero por responsable y por etiqueta.

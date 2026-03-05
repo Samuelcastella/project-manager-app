@@ -125,3 +125,20 @@ test("atajos de vista: l, k y c", async ({ page }) => {
   await page.keyboard.press("l");
   await expect(page.locator("#list-view")).toBeVisible();
 });
+
+test("filtros se recuerdan por vista (lista/kanban)", async ({ page }) => {
+  await page.locator("#filter-status").selectOption("pendiente");
+  await expect(page.locator("#filter-status")).toHaveValue("pendiente");
+
+  await page.locator(".hero").click();
+  await page.keyboard.press("k");
+  await expect(page.locator("#kanban-view")).toBeVisible();
+
+  await page.locator("#filter-status").selectOption("en-progreso");
+  await expect(page.locator("#filter-status")).toHaveValue("en-progreso");
+
+  await page.locator(".hero").click();
+  await page.keyboard.press("l");
+  await expect(page.locator("#list-view")).toBeVisible();
+  await expect(page.locator("#filter-status")).toHaveValue("pendiente");
+});
