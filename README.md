@@ -12,6 +12,7 @@ Para evolucionarlo a **SEMSEproject (ConTech + Marketplace + FSM + Evidence + Es
 - [docs/architecture/SEMSE_API_SURFACE_V1.md](/home/yoni/project-manager-app/docs/architecture/SEMSE_API_SURFACE_V1.md)
 - [docs/security/SECURITY_BASELINE.md](/home/yoni/project-manager-app/docs/security/SECURITY_BASELINE.md)
 - [docs/runbooks/LOCAL_BOOTSTRAP.md](/home/yoni/project-manager-app/docs/runbooks/LOCAL_BOOTSTRAP.md)
+- [docs/runbooks/AGENTS_SMOKE_TEST.md](/home/yoni/project-manager-app/docs/runbooks/AGENTS_SMOKE_TEST.md)
 - [infra/docker/compose.semse-mvp.yml](/home/yoni/project-manager-app/infra/docker/compose.semse-mvp.yml)
 
 ### Avance técnico Fase 0 ya agregado
