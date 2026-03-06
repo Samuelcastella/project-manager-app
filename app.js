@@ -58,11 +58,17 @@ const searchInput = document.getElementById("search");
 const filterStatus = document.getElementById("filter-status");
 const filterPriority = document.getElementById("filter-priority");
 const filterOwner = document.getElementById("filter-owner");
+const filterTag = document.getElementById("filter-tag");
+const filterBudgetMin = document.getElementById("filter-budget-min");
+const filterBudgetMax = document.getElementById("filter-budget-max");
 const sortBy = document.getElementById("sort-by");
 const projectCount = document.getElementById("project-count");
 const filterPreset = document.getElementById("filter-preset");
 const savePresetBtn = document.getElementById("save-preset");
 const deletePresetBtn = document.getElementById("delete-preset");
+const helpShortcutsBtn = document.getElementById("help-shortcuts");
+const shortcutsModal = document.getElementById("shortcuts-modal");
+const closeShortcutsBtn = document.getElementById("close-shortcuts");
 
 const resetFiltersBtn = document.getElementById("reset-filters");
 const clearCompletedBtn = document.getElementById("clear-completed");
@@ -298,6 +304,9 @@ function getFilteredProjects() {
     status: filterStatus.value,
     priority: filterPriority.value,
     owner: filterOwner.value,
+    tag: filterTag.value,
+    budgetMin: filterBudgetMin.value,
+    budgetMax: filterBudgetMax.value,
     sortKey: sortBy.value,
   });
 }
@@ -308,6 +317,9 @@ function getCurrentFilters() {
     status: filterStatus.value,
     priority: filterPriority.value,
     owner: filterOwner.value,
+    tag: filterTag.value,
+    budgetMin: filterBudgetMin.value,
+    budgetMax: filterBudgetMax.value,
     sortBy: sortBy.value,
   };
 }
@@ -317,6 +329,9 @@ function applyFilterControls(filters) {
   filterStatus.value = String(filters.status || "todos");
   filterPriority.value = String(filters.priority || "todas");
   filterOwner.value = String(filters.owner || "");
+  filterTag.value = String(filters.tag || "");
+  filterBudgetMin.value = String(filters.budgetMin || "");
+  filterBudgetMax.value = String(filters.budgetMax || "");
   sortBy.value = String(filters.sortBy || "dueDate");
 }
 
@@ -425,6 +440,7 @@ function createProjectCard(project, compact) {
   actions.className = "project-actions";
   actions.append(
     createButton("Editar", "edit"),
+    createButton("Duplicar", "duplicate"),
     createButton("Estado", "toggle-status"),
     createButton("Eliminar", "delete", "icon-btn danger")
   );
@@ -699,7 +715,34 @@ function performCardAction(eventTarget) {
     return true;
   }
 
+  if (action === "duplicate") {
+    const source = state.projects.find((project) => project.id === projectId);
+    if (!source) return true;
+
+    setUndoSnapshot("duplicar proyecto");
+    const duplicate = {
+      ...source,
+      id: crypto.randomUUID(),
+      name: `${source.name} (Copia)`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    state.projects.push(duplicate);
+    saveProjects();
+    setStatusMessage("Proyecto duplicado.", "success");
+    render();
+    return true;
+  }
+
   return false;
+}
+
+function openShortcutsModal() {
+  shortcutsModal.classList.remove("hidden");
+}
+
+function closeShortcutsModal() {
+  shortcutsModal.classList.add("hidden");
 }
 
 function setView(view) {
@@ -813,6 +856,11 @@ function bindKeyboardShortcuts() {
 
     if (!isTypingTarget(document.activeElement)) {
       const key = event.key.toLowerCase();
+      if (event.key === "?" || key === "h") {
+        event.preventDefault();
+        openShortcutsModal();
+        return;
+      }
       if (key === "l") {
         event.preventDefault();
         setView("list");
@@ -834,6 +882,10 @@ function bindKeyboardShortcuts() {
     }
 
     if (event.key === "Escape") {
+      if (!shortcutsModal.classList.contains("hidden")) {
+        closeShortcutsModal();
+        return;
+      }
       if (inputs.id.value) {
         resetFormState();
         setStatusMessage("Edición cancelada.", "info");
@@ -991,7 +1043,7 @@ function bindEvents() {
   });
 
   const debouncedRender = debounce(render, 180);
-  [searchInput, filterOwner].forEach((control) => {
+  [searchInput, filterOwner, filterTag, filterBudgetMin, filterBudgetMax].forEach((control) => {
     control.addEventListener("input", () => {
       clearPresetSelection();
       persistCurrentViewFilters();
@@ -1028,6 +1080,11 @@ function bindEvents() {
 
   savePresetBtn.addEventListener("click", saveCurrentPreset);
   deletePresetBtn.addEventListener("click", deleteCurrentPreset);
+  helpShortcutsBtn.addEventListener("click", openShortcutsModal);
+  closeShortcutsBtn.addEventListener("click", closeShortcutsModal);
+  shortcutsModal.addEventListener("click", (event) => {
+    if (event.target === shortcutsModal) closeShortcutsModal();
+  });
 
   resetFiltersBtn.addEventListener("click", () => {
     resetFilters();

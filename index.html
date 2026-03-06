@@ -211,6 +211,18 @@
             <input id="filter-owner" type="text" placeholder="Ej: Ana" />
           </label>
           <label>
+            Etiqueta
+            <input id="filter-tag" type="text" placeholder="Ej: sprint-1" />
+          </label>
+          <label>
+            Presupuesto mín.
+            <input id="filter-budget-min" type="number" min="0" step="1" placeholder="0" />
+          </label>
+          <label>
+            Presupuesto máx.
+            <input id="filter-budget-max" type="number" min="0" step="1" placeholder="Sin tope" />
+          </label>
+          <label>
             Ordenar por
             <select id="sort-by">
               <option value="dueDate">Fecha límite</option>
@@ -231,9 +243,10 @@
           </label>
           <button id="save-preset" class="icon-btn" type="button">Guardar preset</button>
           <button id="delete-preset" class="icon-btn danger" type="button">Borrar preset</button>
+          <button id="help-shortcuts" class="icon-btn" type="button">Atajos</button>
           <p class="shortcut-hint">
             Atajos: <kbd>/</kbd> buscar, <kbd>n</kbd> nuevo, <kbd>l</kbd> lista, <kbd>k</kbd> kanban,
-            <kbd>c</kbd> calendario, <kbd>Esc</kbd> cancelar
+            <kbd>c</kbd> calendario, <kbd>?</kbd> ayuda, <kbd>Esc</kbd> cancelar
           </p>
         </div>
 
@@ -277,6 +290,25 @@
         </div>
       </section>
     </main>
+
+    <div id="shortcuts-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <div class="modal-content">
+        <div class="panel-head">
+          <h2 id="shortcuts-title">Atajos de teclado</h2>
+          <button id="close-shortcuts" class="icon-btn" type="button">Cerrar</button>
+        </div>
+        <ul class="shortcut-list">
+          <li><kbd>/</kbd> Enfocar búsqueda</li>
+          <li><kbd>n</kbd> Nuevo proyecto</li>
+          <li><kbd>l</kbd> Vista lista</li>
+          <li><kbd>k</kbd> Vista kanban</li>
+          <li><kbd>c</kbd> Vista calendario</li>
+          <li><kbd>Ctrl/Cmd + Z</kbd> Deshacer</li>
+          <li><kbd>Esc</kbd> Cerrar ayuda / cancelar edición</li>
+          <li><kbd>?</kbd> o <kbd>h</kbd> Abrir ayuda</li>
+        </ul>
+      </div>
+    </div>
 
     <script type="module" src="app.js"></script>
   </body>

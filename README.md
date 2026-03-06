@@ -64,12 +64,14 @@ Configurados para `Samuelcastella/project-manager-app`:
 - Métricas financieras: presupuesto total y por estado.
 - Ranking de presupuesto por responsable.
 - Filtros avanzados (texto, estado, prioridad, responsable) y ordenamiento.
+- Filtros avanzados (texto, estado, prioridad, responsable, etiqueta, presupuesto min/max) y ordenamiento.
 - Recordar filtros automáticamente por vista.
 - Presets de filtros guardados en `localStorage` (asociados por vista).
+- Duplicar proyecto en un clic desde la tarjeta.
 - Export/import de backup completo (`proyectos + presets + filtros por vista`).
 - Deshacer última acción (botón + Ctrl/Cmd+Z).
 - Confirmación antes de sobrescribir configuración al importar backup completo.
-- Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`).
+- Atajos de teclado (`/`, `n`, `Esc`, `l`, `k`, `c`, `?`, `h`) + modal de ayuda de atajos.
 - Cambio rápido de estado.
 - Eliminación individual y limpieza masiva de completados.
 - Exportar e importar proyectos en JSON.

@@ -206,3 +206,27 @@ test("deshacer recupera proyecto eliminado", async ({ page }) => {
   await page.locator("#undo-action").click();
   await expect(page.locator(".project-card h3").first()).toHaveText("Proyecto Undo");
 });
+
+test("duplicar proyecto y usar filtros avanzados (tag + presupuesto)", async ({ page }) => {
+  await page.locator("#name").fill("Proyecto Filtro");
+  await page.locator("#owner").fill("Lina");
+  await page.locator("#dueDate").fill("2026-03-28");
+  await page.locator("#budget").fill("1500");
+  await page.locator("#tags").fill("infra, sprint");
+  await page.getByRole("button", { name: "Guardar proyecto" }).click();
+
+  await page.locator(".project-card button[data-action='duplicate']").first().click();
+  await expect(page.locator("#list-view .project-card")).toHaveCount(2);
+  await expect(page.locator("#list-view .project-card h3")).toContainText([
+    "Proyecto Filtro",
+    "Proyecto Filtro (Copia)",
+  ]);
+
+  await page.locator("#filter-tag").fill("infra");
+  await page.locator("#filter-budget-min").fill("1000");
+  await page.locator("#filter-budget-max").fill("1600");
+  await expect(page.locator("#list-view .project-card")).toHaveCount(2);
+
+  await page.locator("#filter-budget-min").fill("2000");
+  await expect(page.getByText("No hay proyectos para mostrar.")).toBeVisible();
+});

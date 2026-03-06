@@ -290,6 +290,7 @@ test("filterAndSortProjects cubre ramas de busqueda por owner/tag/description y 
       status: "pendiente",
       priority: "alta",
       dueDate: "2026-04-01",
+      budget: 1200,
       tags: ["frontend"],
       description: "Implementar auth",
       createdAt: 1,
@@ -301,6 +302,7 @@ test("filterAndSortProjects cubre ramas de busqueda por owner/tag/description y 
       status: "en-progreso",
       priority: "media",
       dueDate: "2026-04-02",
+      budget: 300,
       tags: ["backend"],
       description: "API interna",
       createdAt: 2,
@@ -342,6 +344,27 @@ test("filterAndSortProjects cubre ramas de busqueda por owner/tag/description y 
     sortKey: "dueDate",
   });
   assert.deepEqual(byPriorityAndOwner.map((item) => item.id), ["a"]);
+
+  const byExplicitTagFilter = filterAndSortProjects(projects, {
+    search: "",
+    status: "todos",
+    priority: "todas",
+    owner: "",
+    tag: "front",
+    sortKey: "dueDate",
+  });
+  assert.deepEqual(byExplicitTagFilter.map((item) => item.id), ["a"]);
+
+  const byBudgetRange = filterAndSortProjects(projects, {
+    search: "",
+    status: "todos",
+    priority: "todas",
+    owner: "",
+    budgetMin: "500",
+    budgetMax: "1500",
+    sortKey: "dueDate",
+  });
+  assert.deepEqual(byBudgetRange.map((item) => item.id), ["a"]);
 });
 
 test("normalización de filtros por vista y presets", () => {

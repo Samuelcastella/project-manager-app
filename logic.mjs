@@ -91,11 +91,19 @@ export function filterAndSortProjects(items, filters) {
     status = "todos",
     priority = "todas",
     owner = "",
+    tag = "",
+    budgetMin = "",
+    budgetMax = "",
     sortKey = "dueDate",
   } = filters;
 
   const searchValue = search.trim().toLowerCase();
   const ownerValue = owner.trim().toLowerCase();
+  const tagValue = tag.trim().toLowerCase();
+  const minValue = Number(budgetMin);
+  const maxValue = Number(budgetMax);
+  const hasMin = Number.isFinite(minValue) && String(budgetMin).trim() !== "";
+  const hasMax = Number.isFinite(maxValue) && String(budgetMax).trim() !== "";
 
   return items
     .filter((project) => {
@@ -108,8 +116,11 @@ export function filterAndSortProjects(items, filters) {
       const inStatus = status === "todos" || project.status === status;
       const inPriority = priority === "todas" || project.priority === priority;
       const inOwner = !ownerValue || project.owner.toLowerCase().includes(ownerValue);
+      const inTag = !tagValue || project.tags.some((item) => item.includes(tagValue));
+      const inBudgetMin = !hasMin || project.budget >= minValue;
+      const inBudgetMax = !hasMax || project.budget <= maxValue;
 
-      return inSearch && inStatus && inPriority && inOwner;
+      return inSearch && inStatus && inPriority && inOwner && inTag && inBudgetMin && inBudgetMax;
     })
     .sort((a, b) => {
       if (sortKey === "priority") return PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority];
@@ -126,6 +137,9 @@ export function getDefaultFilters() {
     status: "todos",
     priority: "todas",
     owner: "",
+    tag: "",
+    budgetMin: "",
+    budgetMax: "",
     sortBy: "dueDate",
   };
 }
@@ -137,6 +151,9 @@ export function sanitizeFilters(input) {
     status: String(source.status || "todos"),
     priority: String(source.priority || "todas"),
     owner: String(source.owner || ""),
+    tag: String(source.tag || ""),
+    budgetMin: String(source.budgetMin || ""),
+    budgetMax: String(source.budgetMax || ""),
     sortBy: String(source.sortBy || "dueDate"),
   };
 }
